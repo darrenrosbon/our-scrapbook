@@ -172,15 +172,12 @@
   .tags .chip { font-size: .72rem; padding: 1px 8px; }
   audio { width: 100%; margin-top: 8px; height: 36px; }
   .actions { position: absolute; top: 18px; right: 18px; display: flex; gap: 6px; z-index: 5; }
-  .actions button { border: 0; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; background: rgba(255,255,255,.92); color: #333; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-  /* Edit / Delete: always visible on every card (desktop and touch) */
-  .cardfoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .cardfoot .reactions { margin-top: 0; }
-  .cardtools { display: flex; gap: 6px; margin-left: auto; }
-  .cardtools button { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 5px 12px; font-size: .85rem; cursor: pointer; min-height: 32px; }
-  .cardtools button:hover { background: var(--paper-2); }
-  .cardtools .del { padding: 5px 10px; }
-  @media (pointer: coarse) { .cardtools button { min-height: 40px; padding: 8px 14px; } .react { min-height: 36px; } }
+  .actions button { border: 0; border-radius: 50%; width: 26px; height: 26px; font-size: .8rem; cursor: pointer; background: rgba(255,255,255,.92); color: #333; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  /* Edit: always visible, but small and quiet, parked at the very bottom of the card */
+  .cardedit { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .cardedit button { border: 0; background: none; color: var(--muted); font-size: .72rem; letter-spacing: .02em; text-decoration: underline; padding: 2px 4px; cursor: pointer; opacity: .75; }
+  .cardedit button:hover, .cardedit button:focus-visible { opacity: 1; color: var(--accent); }
+  .danger { color: #b3261e; border-color: rgba(179,38,30,.5); }
   .actions .fav.on { color: #d6335a; }
   @media (hover: none) { .actions .edit, .actions .del { opacity: 1; } }
   .comments { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; font-size: .9rem; }
@@ -523,6 +520,7 @@
     <label class="check"><input type="checkbox" id="capsule"> 🔒 Seal as a time capsule <span class="hint">(hidden until a date you choose)</span></label>
     <label class="field" id="unlockField" hidden>Opens on <input type="date" id="unlockDate"></label>
     <div class="row">
+      <button type="button" class="btn ghost danger" id="deleteBtn" style="margin-right:auto" hidden>Delete this memory</button>
       <button type="button" class="btn ghost" id="cancelBtn">Cancel</button>
       <button type="submit" class="btn" id="saveBtn">Save memory</button>
     </div>
@@ -1261,7 +1259,7 @@
           class: 'edit', title: 'Peek inside / edit', 'aria-label': 'Peek inside or edit', text: '✎',
           onclick: async () => { if (await ask({ title: 'Peek inside? It will show you what’s in the capsule.', okText: 'Open it' })) openDialog(m); },
         }),
-        h('button', { class: 'del', title: 'Delete', 'aria-label': 'Delete memory', text: '🗑', onclick: () => removeMemory(m) })),
+        ),
       h('div', { class: 'seal', text: '💌', 'aria-hidden': 'true' }),
       h('div', { class: 'date', text: 'A time capsule' }),
       h('p', { class: 'text', text: `Sealed for ${days} more day${days === 1 ? '' : 's'}.` }),
@@ -1299,12 +1297,11 @@
         class: 'chip', text: '#' + t, onclick: () => { activeTags.add(t); setFilters(true); render(); $('scroller').scrollTo({ top: 0 }); },
       }))) : null,
       buildSong(m),
-      h('div', { class: 'cardfoot' },
-        buildReactions(m),
-        h('div', { class: 'cardtools' },
-          h('button', { type: 'button', class: 'edit', 'aria-label': 'Edit this memory', onclick: () => openDialog(m) }, '✎ Edit'),
-          h('button', { type: 'button', class: 'del', 'aria-label': 'Delete this memory', onclick: () => removeMemory(m) }, '🗑'))),
-      buildComments(m));
+      buildReactions(m),
+      buildComments(m),
+      // small and out of the way, below the comment box; Delete lives inside the edit screen
+      h('div', { class: 'cardedit' },
+        h('button', { type: 'button', 'aria-label': 'Edit this memory', onclick: () => openDialog(m) }, 'Edit')));
     return h('article', {
       class: 'entry' + (right ? ' right' : '') + (occasions.length ? ' special' : ''),
       'data-id': m.id, 'data-emoji': occasions.length ? occasions[0].emoji : null,
@@ -1312,9 +1309,10 @@
   }
 
   async function removeMemory(m) {
-    if (!await ask({ title: 'Delete this memory?', okText: 'Delete' })) return;
-    try { await backend.remove(m); } catch (err) { toast('Could not delete: ' + err.message); return; }
+    if (!await ask({ title: 'Delete this memory?', okText: 'Delete' })) return false;
+    try { await backend.remove(m); } catch (err) { toast('Could not delete: ' + err.message); return false; }
     memories = memories.filter(x => x.id !== m.id); render();
+    return true;
   }
 
   /* ---------- render ---------- */
@@ -1717,6 +1715,7 @@
     $('unlockDate').value = m && m.unlock ? m.unlock : '';
     $('unlockField').hidden = !$('capsule').checked;
     $('dialogTitle').textContent = m ? 'Edit memory' : 'Add a memory';
+    $('deleteBtn').hidden = !m;
     $('date').value = m ? m.date : todayISO();
     $('text').value = m ? m.text : '';
     $('place').value = m ? m.place : '';
@@ -1727,6 +1726,10 @@
 
   $('addBtn').onclick = () => openDialog(null);
   $('cancelBtn').onclick = () => $('memDialog').close();
+  $('deleteBtn').onclick = async () => {
+    const m = memories.find(x => x.id === editingId);
+    if (m && await removeMemory(m)) $('memDialog').close();   // asks "Are you sure?" first
+  };
   $('addMediaBtn').onclick = () => $('file').click();
   $('file').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
   $('date').addEventListener('input', drawSuggestions);
