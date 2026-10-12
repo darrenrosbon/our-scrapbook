@@ -2,8 +2,17 @@
 <html lang="en" data-theme="paper">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Our Scrapbook</title>
+<!-- installable app: manifest, icons, and phone home-screen settings -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f6efe3">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Scrapbook">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -51,7 +60,7 @@
   header {
     /* app-shell layout: the header and tab bar never move; only #scroller scrolls */
     position: relative; flex: none; z-index: 50; background: var(--paper);
-    padding: 12px 16px 10px; box-shadow: 0 1px 0 var(--line), 0 6px 16px -10px rgba(60,40,20,.35);
+    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px; box-shadow: 0 1px 0 var(--line), 0 6px 16px -10px rgba(60,40,20,.35);
   }
   header::after { /* thin red thread along the bottom edge */
     content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
@@ -128,6 +137,29 @@
   .otd button { background: none; border: 0; color: var(--accent); cursor: pointer; text-decoration: underline; padding: 0; font: inherit; }
   .timeline { position: relative; }
   /* red string: twisted-thread look, with a soft shadow so it sits on the paper */
+  /* year in review */
+  .year { max-width: 720px; margin: 0 auto; }
+  .yr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .yr-head h2 { font-family: 'Caveat', cursive; font-size: 2.4rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .yr-head select { font: inherit; font-size: 1.6rem; background: var(--input); border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; color: var(--ink); }
+  .yr-sub { color: var(--muted); margin: 4px 0 12px; font-size: .9rem; }
+  .yr-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 10px 0 16px; }
+  .yr-tile { background: var(--card); border-radius: 12px; padding: 14px 10px; text-align: center; box-shadow: var(--shadow); }
+  .yr-tile b { display: block; font-family: 'Caveat', cursive; font-size: 2.2rem; line-height: 1; color: var(--accent); }
+  .yr-tile span { font-size: .8rem; color: var(--muted); }
+  .yr-card { background: var(--card); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .yr-card h3 { font-family: 'Caveat', cursive; font-size: 1.5rem; margin: 0 0 2px; }
+  .yr-card p { margin: 6px 0; }
+  .yr-quote { font-family: 'Caveat', cursive; font-size: 1.4rem; line-height: 1.25; }
+  .yr-bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; height: 120px; margin-top: 8px; }
+  .yr-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; }
+  .yr-bar i { display: block; width: 100%; background: var(--line); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .yr-bar.top i { background: var(--accent); }
+  .yr-bar span { font-size: .72rem; color: var(--muted); }
+  .yr-songs { margin: 6px 0 0; padding-left: 18px; }
+  .yr-empty { text-align: center; padding: 70px 16px; color: var(--muted); }
+  .yr-empty .big { font-family: 'Caveat', cursive; font-size: 2.2rem; color: var(--ink); }
+  .more { text-align: center; color: var(--muted); font-size: .85rem; padding: 28px 0 40px; position: relative; z-index: 2; }
   #string { position: absolute; top: 0; pointer-events: none; overflow: visible; filter: drop-shadow(1px 2px 2px rgba(60,20,10,.35)); }
   .group-title { position: relative; z-index: 2; text-align: center; margin: 36px 0 18px; font-family: 'Caveat', cursive; font-size: 1.8rem; }
   .group-title span { background: var(--paper-2); padding: 2px 18px; border-radius: 999px; border: 1px solid var(--line); }
@@ -146,7 +178,9 @@
   .polaroid::before { content: ''; position: absolute; top: -12px; left: 50%; width: 90px; height: 24px; background: var(--tape); transform: translateX(-50%) rotate(-3deg); }
   .sticker { position: absolute; top: -18px; left: -14px; font-size: 2.2rem; transform: rotate(-12deg); filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); z-index: 4; pointer-events: none; }
   .carousel { position: relative; touch-action: pan-y; }
-  .stack { position: relative; aspect-ratio: 4 / 3; margin-bottom: 14px; }
+  .stack { position: relative; aspect-ratio: 4 / 3; margin-bottom: 14px; } /* arrows + counter live inside the stack */
+  .photocap { font-family: 'Caveat', cursive; font-size: 1.25rem; line-height: 1.15; text-align: center; margin: -2px 0 2px; color: var(--ink); }
+  .photocredit { font-size: .74rem; color: var(--muted); text-align: center; margin-top: 2px; }
   .slide {
     position: absolute; inset: 0; background: #1d1d1d; border: 6px solid var(--card); box-shadow: 0 2px 8px rgba(0,0,0,.28);
     transition: transform .38s cubic-bezier(.3,.7,.3,1), opacity .38s;
@@ -184,7 +218,10 @@
   .actions { position: absolute; top: 18px; right: 18px; display: flex; gap: 6px; z-index: 5; }
   .actions button { border: 0; border-radius: 50%; width: 26px; height: 26px; font-size: .8rem; cursor: pointer; background: rgba(255,255,255,.92); color: #333; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
   /* Edit: always visible, but small and quiet, parked at the very bottom of the card */
-  .cardedit { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .cardedit { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+  .cardedit .addphotos { text-decoration: none; font-size: .78rem; color: var(--ink); border: 1px dashed var(--line); border-radius: 999px; padding: 4px 12px; opacity: .9; }
+  .cardedit .addphotos:hover { border-color: var(--accent); color: var(--accent); }
+  .cardedit .addphotos:disabled { opacity: .5; cursor: default; }
   .cardedit button { border: 0; background: none; color: var(--muted); font-size: .72rem; letter-spacing: .02em; text-decoration: underline; padding: 2px 4px; cursor: pointer; opacity: .75; }
   .cardedit button:hover, .cardedit button:focus-visible { opacity: 1; color: var(--accent); }
   .danger { color: #b3261e; border-color: rgba(179,38,30,.5); }
@@ -218,9 +255,13 @@
   .hint { font-size: .8rem; }
   .suggest { background: var(--paper-2); border: 1px dashed var(--line); border-radius: 8px; padding: 6px 10px; font-size: .85rem; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
   .suggest button { border: 0; background: var(--accent); color: #fff; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
-  .mediagrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .mediagrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px 8px; }
   .mitem { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--paper-2); display: grid; place-items: center; font-size: 1.6rem; }
   .mitem img, .mitem video { width: 100%; height: 100%; object-fit: cover; }
+  .mcell { display: grid; gap: 4px; align-content: start; }
+  .mcell .mcap { width: 100%; min-width: 0; font-size: .78rem; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); color: var(--ink); }
+  .mitem .cover { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(255,255,255,.92); color: #8a6d00; cursor: pointer; line-height: 1; font-size: .8rem; }
+  .mitem .coverbadge { position: absolute; top: 4px; left: 4px; background: #f2c14e; color: #3b2f2a; font-size: .65rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; }
   .mitem .x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; line-height: 1; }
   .mitem small { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.6); color: #fff; font-size: .65rem; padding: 0 5px; border-radius: 4px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -398,6 +439,10 @@
     position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); text-align: center;
     color: rgba(255, 255, 255, .85); font: 600 .85rem/1 system-ui, sans-serif; letter-spacing: .04em;
   }
+  .lb-caption {
+    position: absolute; left: 0; right: 0; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); z-index: 2; text-align: center;
+    padding: 0 64px; color: #fff; font: 500 1.35rem/1.2 'Caveat', cursive; text-shadow: 0 1px 6px rgba(0,0,0,.7); pointer-events: none;
+  }
   .lb.single .lb-prev, .lb.single .lb-next, .lb.single .lb-count { display: none; }
   @media (max-width: 720px) { .lb-prev, .lb-next { width: 40px; height: 40px; margin-top: -20px; background: rgba(0, 0, 0, .38); } }
   #show { position: fixed; inset: 0; z-index: 100; background: #0c0a10; color: #fff; display: flex; flex-direction: column; }
@@ -464,6 +509,7 @@
         <button id="viewTimeline" class="on">Timeline</button>
         <button id="viewMap">Map</button>
         <button id="viewLists">Lists</button>
+        <button id="viewYear">Year</button>
       </div>
       <button class="icon" id="bookBtn" aria-label="Make a photo book (PDF)" title="Photo book (uses your current filters)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -507,6 +553,12 @@
       Dates
     </button>
     <label class="pill"><input type="checkbox" id="favOnly"> ♥ Favorites</label>
+    <label class="pill" title="Only show memories added by one of you">
+      <span aria-hidden="true">👤</span>
+      <select id="whoFilter" aria-label="Added by">
+        <option value="">Anyone</option><option value="Rashmika">Rashmika</option><option value="Darren">Darren</option>
+      </select>
+    </label>
     <button class="pill" id="clearBtn">Clear</button>
     <span class="count" id="count"></span>
   </div>
@@ -537,6 +589,7 @@
     <div id="map"></div>
     <div id="mapEmpty" hidden><p>No memories have a place yet.<br>Add a place when you create or edit a memory.</p></div>
   </div>
+  <div id="yearWrap" class="year" hidden></div>
   <div id="listsWrap" hidden>
     <form id="newListForm" class="newlist">
       <input id="newListTitle" type="text" maxlength="80" placeholder="New list, e.g. Places we want to go" aria-label="New list title">
@@ -557,6 +610,7 @@
   <button data-view="timeline" class="on">Timeline</button>
   <button data-view="map">Map</button>
   <button data-view="lists">Lists</button>
+  <button data-view="year">Year</button>
 </nav>
 
 <dialog id="memDialog">
@@ -634,6 +688,7 @@
         <option value="">Choose…</option><option value="Rashmika">Rashmika (R)</option><option value="Darren">Darren (D)</option>
       </select>
     </label>
+    <div class="field">Install on your phone <span class="hint">iPhone: tap Share, then “Add to Home Screen”. Android: open the browser menu and choose “Install app” or “Add to Home screen”. It then opens full-screen like an app.</span></div>
     <div class="field">Backup <span class="hint">(a .zip with every memory, comment, list and photo, to keep somewhere safe)</span>
       <button type="button" class="btn ghost" id="backupBtn">Download a full backup</button>
     </div>
@@ -678,6 +733,7 @@
   <button type="button" class="lb-btn lb-next" id="lbNext" aria-label="Next photo">
     <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 5 16 12 9 19"/></svg>
   </button>
+  <div class="lb-caption" id="lbCaption" hidden></div>
   <div class="lb-count" id="lbCount" aria-live="polite"></div>
 </div>
 
@@ -804,7 +860,7 @@
   const extFor = b => ({ 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/wav': 'wav' }[(b.type || '').split(';')[0]] || 'bin');
   const kindOf = f => f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : f.type.startsWith('image/') ? 'image' : null;
 
-  function shrink(file, max = 1600) {
+  function shrink(file, max = 1600, quality = 0.85) {
     return new Promise((res, rej) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -814,7 +870,7 @@
         c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
-        c.toBlob(b => b ? res(b) : rej(new Error('Could not process image')), 'image/jpeg', 0.85);
+        c.toBlob(b => b ? res(b) : rej(new Error('Could not process image')), 'image/jpeg', quality);
       };
       img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Could not read that image')); };
       img.src = url;
@@ -843,7 +899,7 @@
         t.onerror = () => rej(t.error);
       });
     };
-    const strip = m => ({ ...m, media: m.media.map(i => ({ type: i.type, blob: i.blob })) });
+    const strip = m => ({ ...m, media: m.media.map(i => ({ type: i.type, blob: i.blob, thumbBlob: i.thumbBlob || null, caption: i.caption || '', by: i.by || null })) });
     const persist = m => tx('readwrite', s => s.put(strip(m)));
     return {
       async loadAll() {
@@ -853,13 +909,15 @@
             m.media = [];
             if (m.img) { try { m.media = [{ type: 'image', blob: await (await fetch(m.img)).blob() }]; } catch {} }
           }
-          m.media.forEach(i => { i.url = URL.createObjectURL(i.blob); });
+          m.media.forEach(i => { i.url = URL.createObjectURL(i.blob); if (i.thumbBlob) i.thumbUrl = URL.createObjectURL(i.thumbBlob); });
           m.tags = m.tags || []; m.comments = m.comments || []; m.reactions = m.reactions || [];
           m.unlock = m.unlock || null; m.song = m.song || null;
         }
         return rows;
       },
       async save(m) { await persist(m); return m; },
+      // add photos/videos to an existing memory without touching anything else about it
+      async appendMedia(m, items) { m.media.push(...items); await persist(m); return items; },
       async remove(m) { await tx('readwrite', s => s.delete(m.id)); },
       async setFavorite(m) { await persist(m); },
       async addComment(m, author, body) {
@@ -908,7 +966,7 @@
       (rq.data || []).forEach(r => (rxByMem[r.memory_id] = rxByMem[r.memory_id] || []).push({ id: r.id, author: r.author, emoji: r.emoji }));
       const byMem = {};
       (cq.data || []).forEach(c => (byMem[c.memory_id] = byMem[c.memory_id] || []).push({ id: c.id, author: c.author, body: c.body, created: Date.parse(c.created_at) }));
-      const paths = [...new Set(mq.data.flatMap(r => mediaOf(r).map(x => x.path)))];
+      const paths = [...new Set(mq.data.flatMap(r => mediaOf(r).flatMap(x => [x.path, x.thumb])).filter(Boolean))];
       const urls = {};
       if (paths.length) {
         const { data: signed, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, 6 * 3600);
@@ -917,24 +975,51 @@
       }
       return mq.data.map(r => ({
         id: r.id, date: r.date, text: r.text, created: Date.parse(r.created_at),
-        media: mediaOf(r).map(x => ({ type: x.type, path: x.path, url: urls[x.path] || null })),
+        media: mediaOf(r).map(x => ({ type: x.type, path: x.path, url: urls[x.path] || null,
+          thumb: x.thumb || null, thumbUrl: x.thumb ? urls[x.thumb] || null : null, caption: x.caption || '', by: x.by || null })),
         tags: r.tags || [], favorite: !!r.favorite, sticker: r.sticker || null,
         place: r.place || '', lat: r.lat, lng: r.lng, comments: byMem[r.id] || [],
         unlock: r.unlock_date || null, song: r.song || null, reactions: rxByMem[r.id] || [],
         author: r.author || null,
       }));
     },
+    // upload one photo/video (and its small preview) to private storage; returns the entry stored in the memory
+    async _upload(it) {
+      if (!it.path) {
+        const path = `${crypto.randomUUID()}.${extFor(it.blob)}`;
+        const { error } = await sb.storage.from(BUCKET).upload(path, it.blob, { contentType: it.blob.type || undefined });
+        if (error) throw error;
+        it.path = path; // so a retry doesn't upload twice
+      }
+      if (it.thumbBlob && !it.thumb) {
+        const tp = `${crypto.randomUUID()}_t.jpg`;
+        const { error } = await sb.storage.from(BUCKET).upload(tp, it.thumbBlob, { contentType: 'image/jpeg' });
+        if (!error) it.thumb = tp;                       // a missing preview is fine, the full photo is used
+      }
+      const e = { type: it.type, path: it.path };
+      if (it.thumb) e.thumb = it.thumb;
+      if (it.caption) e.caption = it.caption;
+      if (it.by) e.by = it.by;
+      return e;
+    },
+    // add photos to a memory: only the photo list changes, and it merges with what's in the database right now
+    async appendMedia(m, items) {
+      const added = [];
+      for (const it of items) added.push(await this._upload(it));
+      const { data, error } = await sb.from('memories').select('media').eq('id', m.id).single();
+      if (error) throw error;
+      const next = [...(Array.isArray(data.media) ? data.media : []), ...added];
+      const up = await sb.from('memories').update({ media: next }).eq('id', m.id);
+      if (up.error) throw up.error;
+      const want = added.flatMap(a => [a.path, a.thumb]).filter(Boolean);
+      const { data: signed } = await sb.storage.from(BUCKET).createSignedUrls(want, 6 * 3600);
+      const u = Object.fromEntries((signed || []).map(s => [s.path, s.signedUrl]));
+      items.forEach((it, i) => { it.url = u[added[i].path] || it.url; if (added[i].thumb) it.thumbUrl = u[added[i].thumb] || it.thumbUrl; });
+      return items;
+    },
     async save(m, removed = []) {
       const media = [];
-      for (const it of m.media) {
-        if (!it.path) {
-          const path = `${crypto.randomUUID()}.${extFor(it.blob)}`;
-          const { error } = await sb.storage.from(BUCKET).upload(path, it.blob, { contentType: it.blob.type || undefined });
-          if (error) throw error;
-          it.path = path; // so a retry doesn't upload twice
-        }
-        media.push({ type: it.type, path: it.path });
-      }
+      for (const it of m.media) media.push(await this._upload(it));
       const row = {
         id: m.id, date: m.date, text: m.text, media, tags: m.tags, favorite: m.favorite,
         sticker: m.sticker, place: m.place || null, lat: m.lat, lng: m.lng,
@@ -1061,6 +1146,7 @@
     return memories
       .filter(m => {
         if (favOnly && !m.favorite) return false;
+        if ($('whoFilter').value && m.author !== $('whoFilter').value) return false;
         if (from && m.date < from) return false;
         if (to && m.date > to) return false;
         if ((q || activeTags.size) && isLocked(m)) return false; // sealed contents can't be searched
@@ -1161,12 +1247,9 @@
     })));
   }
   function jumpTo(id) {
-    $('q').value = ''; $('from').value = ''; $('to').value = ''; $('favOnly').checked = false; activeTags.clear();
-    setView('timeline'); render();
-    const el = document.querySelector(`.entry[data-id="${id}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2000);
+    $('q').value = ''; $('from').value = ''; $('to').value = ''; $('favOnly').checked = false; $('whoFilter').value = ''; activeTags.clear();
+    renderLimit = PAGE;
+    revealCard(id);
   }
 
   /* ---------- tag bar ---------- */
@@ -1189,13 +1272,19 @@
     const slides = vis.map(it => h('div', { class: 'slide' },
       it.type === 'video'
         ? h('video', { src: it.url, controls: true, playsinline: true, preload: 'metadata' })
-        : h('img', { src: it.url, alt: m.text.slice(0, 80) || 'Memory photo', loading: 'lazy', draggable: 'false',
-            onclick: () => { const urls = vis.filter(x => x.type !== 'video').map(x => x.url); openLightbox(urls, urls.indexOf(it.url)); } })));
+        : h('img', { src: it.thumbUrl || it.url, alt: it.caption || m.text.slice(0, 80) || 'Memory photo', loading: 'lazy', decoding: 'async', draggable: 'false',
+            onclick: () => { const imgs = vis.filter(x => x.type !== 'video'); openLightbox(imgs.map(x => ({ url: x.url, caption: x.caption || '' })), imgs.indexOf(it)); } })));
     const counter = h('span', { class: 'counter' });
+    const cap = h('div', { class: 'photocap' });
     const layout = () => {
       slides.forEach((s, k) => s.dataset.p = Math.min((k - idx + n) % n, 3));
       counter.textContent = `${idx + 1} / ${n}`;
+      cap.textContent = vis[idx].caption || ''; cap.hidden = !cap.textContent;
     };
+    // who added photos to someone else's memory, e.g. "+2 photos from Rashmika"
+    const extra = {};
+    m.media.forEach(x => { if (x.type !== 'audio' && x.by && x.by !== m.author) extra[x.by] = (extra[x.by] || 0) + 1; });
+    const credit = Object.entries(extra).map(([who, c]) => `+${c} photo${c === 1 ? '' : 's'} from ${who}`).join(' · ');
     const quiet = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const pause = s => { const v = s.querySelector('video'); if (v) v.pause(); };
     const next = () => {
@@ -1224,9 +1313,10 @@
       back.classList.remove('leave');                   // ...sliding in from the side
       setTimeout(() => { busy = false; }, quiet() ? 0 : 380);
     };
-    const wrap = h('div', { class: 'carousel' }, h('div', { class: 'stack' }, slides));
+    const stackEl = h('div', { class: 'stack' }, slides);
+    const wrap = h('div', { class: 'carousel' }, stackEl);
     if (n > 1) {
-      wrap.append(
+      stackEl.append(
         h('button', { class: 'nav prev', 'aria-label': 'Previous photo', text: '‹', onclick: prev }),
         h('button', { class: 'nav next', 'aria-label': 'Next photo', text: '›', onclick: next }),
         counter);
@@ -1238,6 +1328,7 @@
         if (Math.abs(dx) > 40) (dx < 0 ? next : prev)();
       });
     }
+    wrap.append(cap, credit ? h('div', { class: 'photocredit', text: '📷 ' + credit }) : null);
     layout();
     return wrap;
   }
@@ -1441,11 +1532,44 @@
       buildComments(m),
       // small and out of the way, below the comment box; Delete lives inside the edit screen
       h('div', { class: 'cardedit' },
+        // adding photos can only ever add: it never touches the text, date or tags
+        (() => {
+          const input = h('input', { type: 'file', accept: 'image/*,video/*', multiple: true, hidden: true });
+          const btn = h('button', { type: 'button', class: 'addphotos', 'aria-label': 'Add photos to this memory' }, '＋ Add photos');
+          btn.onclick = () => input.click();
+          input.onchange = () => { const files = [...input.files]; input.value = ''; if (files.length) addPhotosTo(m, files, btn); };
+          return h('span', { class: 'addwrap' }, btn, input);
+        })(),
         h('button', { type: 'button', 'aria-label': 'Edit this memory', onclick: () => openDialog(m) }, 'Edit')));
     return h('article', {
       class: 'entry' + (right ? ' right' : '') + (occasions.length ? ' special' : ''),
       'data-id': m.id, 'data-emoji': occasions.length ? occasions[0].emoji : null,
     }, pol);
+  }
+
+  async function addPhotosTo(m, files, btn) {
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+      const items = [], me = getAuthor() || null;
+      for (const f of files) {
+        const kind = kindOf(f);
+        if (kind !== 'image' && kind !== 'video') { toast(`${f.name}: only photos and videos can be added here`); continue; }
+        if (f.size > MAX_FILE) { toast(`${f.name} is over 50 MB, so it was skipped`); continue; }
+        let blob = f, thumbBlob = null;
+        if (kind === 'image') { blob = await shrink(f); thumbBlob = await shrink(f, 720, 0.8); }
+        items.push({ type: kind, blob, thumbBlob, by: me, url: URL.createObjectURL(blob), thumbUrl: thumbBlob ? URL.createObjectURL(thumbBlob) : null });
+      }
+      if (!items.length) return;
+      await backend.appendMedia(m, items);
+      items.forEach(it => { if (it.path) noteMine(it.path); });
+      if (!m.media.includes(items[0])) m.media.push(...items);        // cloud mode: reflect it locally too
+      toast(`Added ${items.length} ${items.length === 1 ? 'photo' : 'photos'}`);
+      render();
+    } catch (err) {
+      console.error(err);
+      toast('Could not add photos: ' + (err.message || 'storage error'));
+    } finally { btn.disabled = false; btn.textContent = label; }
   }
 
   async function removeMemory(m) {
@@ -1459,8 +1583,9 @@
   function render() {
     renderTagBar(); renderStats(); renderOnThisDay();
     if (view === 'lists') { renderLists(); return; }
+    if (view === 'year') { renderYear(); return; }
     const list = visible();
-    const filtered = $('q').value || $('from').value || $('to').value || $('favOnly').checked || activeTags.size;
+    const filtered = $('q').value || $('from').value || $('to').value || $('favOnly').checked || $('whoFilter').value || activeTags.size;
     $('count').textContent = memories.length ? `${list.length} of ${memories.length} memories` : '';
     $('filterBtn').classList.toggle('on', !!filtered);
     const dateOn = !!($('from').value || $('to').value);
@@ -1473,13 +1598,43 @@
       $('emptySub').textContent = memories.length && filtered ? 'Try a different search, tag, or date range.' : 'Press “Add memory” to pin the first one.';
     }
     if (view === 'map') { renderMap(list); return; }
-    let lastGroup = '', n = 0;
-    for (const m of list) {
-      const g = monthLabel(m.date);
-      if (g !== lastGroup) { tl.append(h('div', { class: 'group-title' }, h('span', { text: g }))); lastGroup = g; }
-      tl.append(buildCard(m, n++ % 2 === 1));
+    // draw the first batch now; more cards are added as you scroll down (keeps big scrapbooks quick)
+    tlState = { list, shown: 0, lastGroup: '', n: 0 };
+    appendCards(Math.max(PAGE, renderLimit));
+  }
+
+  const PAGE = 20;
+  let renderLimit = PAGE;
+  let tlState = { list: [], shown: 0, lastGroup: '', n: 0 };
+  let moreObserver = null;
+  function appendCards(count) {
+    const tl = $('timeline'), st = tlState;
+    const end = Math.min(st.list.length, st.shown + count);
+    tl.querySelector('#moreSentinel')?.remove();
+    for (; st.shown < end; st.shown++) {
+      const m = st.list[st.shown], g = monthLabel(m.date);
+      if (g !== st.lastGroup) { tl.append(h('div', { class: 'group-title' }, h('span', { text: g }))); st.lastGroup = g; }
+      tl.append(buildCard(m, st.n++ % 2 === 1));
+    }
+    renderLimit = Math.max(renderLimit, st.shown);
+    if (moreObserver) { moreObserver.disconnect(); moreObserver = null; }
+    if (st.shown < st.list.length) {
+      const s = h('div', { id: 'moreSentinel', class: 'more', text: 'Loading more memories…' });
+      tl.append(s);
+      moreObserver = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) appendCards(PAGE); }, { root: $('scroller'), rootMargin: '700px 0px' });
+      moreObserver.observe(s);
     }
     drawString();
+  }
+  // show one memory even if it isn't drawn yet
+  function revealCard(id) {
+    setView('timeline'); render();
+    let guard = 0;
+    while (!document.querySelector(`.entry[data-id="${id}"]`) && tlState.shown < tlState.list.length && guard++ < 500) appendCards(PAGE);
+    const el = document.querySelector(`.entry[data-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2000);
   }
 
   /* ---------- wavy red string ---------- */
@@ -1526,7 +1681,7 @@
     pts.forEach(m => {
       const first = m.media.find(x => x.type === 'image' && x.url);
       const pop = h('div', { class: 'pop' },
-        first ? h('img', { src: first.url, alt: '' }) : null,
+        first ? h('img', { src: first.thumbUrl || first.url, alt: '' }) : null,
         h('b', { text: fmt(m.date) }),
         m.place ? h('div', { text: '📍 ' + m.place }) : null,
         m.text ? h('div', { text: m.text.slice(0, 140) }) : null,
@@ -1543,15 +1698,91 @@
     $('viewTimeline').classList.toggle('on', v === 'timeline');
     $('viewMap').classList.toggle('on', v === 'map');
     $('viewLists').classList.toggle('on', v === 'lists');
+    $('viewYear').classList.toggle('on', v === 'year');
     document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
     $('timeline').hidden = v !== 'timeline';
     $('mapWrap').hidden = v !== 'map';
     $('listsWrap').hidden = v !== 'lists';
+    $('yearWrap').hidden = v !== 'year';
     if (v !== 'timeline') $('empty').hidden = true;
   }
   $('viewTimeline').onclick = () => { setView('timeline'); render(); };
   $('viewMap').onclick = () => { setView('map'); render(); };
   $('viewLists').onclick = () => { setView('lists'); render(); };
+  $('viewYear').onclick = () => { setView('year'); render(); };
+
+  /* ---------- year in review ---------- */
+  let yearPick = null;
+  const monthName = i => new Date(2000, i, 1).toLocaleDateString(undefined, { month: 'long' });
+  function renderYear() {
+    const box = $('yearWrap'); box.replaceChildren();
+    $('empty').hidden = true;
+    const real = memories.filter(m => !isLocked(m));
+    const years = [...new Set(real.map(m => +m.date.slice(0, 4)))].sort((a, b) => b - a);
+    if (!years.length) {
+      box.append(h('div', { class: 'yr-empty' }, h('div', { class: 'big', text: 'Your year in review' }),
+        h('p', { text: 'Add a few memories and a summary of the year will appear here.' })));
+      return;
+    }
+    if (yearPick == null || !years.includes(yearPick)) yearPick = years[0];
+    const Y = yearPick;
+    const ms = real.filter(m => +m.date.slice(0, 4) === Y).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.created - b.created);
+    const count = (arr, fn) => arr.reduce((n, x) => n + fn(x), 0);
+    const media = ms.flatMap(m => m.media);
+    const photos = media.filter(x => x.type === 'image').length, videos = media.filter(x => x.type === 'video').length, voice = media.filter(x => x.type === 'audio').length;
+    const words = count(ms, m => (m.text || '').split(/\s+/).filter(Boolean).length);
+    const comments = count(ms, m => m.comments.length), reactions = count(ms, m => m.reactions.length);
+    const favs = ms.filter(m => m.favorite).length;
+    const places = [...new Map(ms.filter(m => m.place && m.place.trim()).map(m => [m.place.trim().toLowerCase(), m.place.trim()])).values()];
+    const perMonth = Array(12).fill(0); ms.forEach(m => { perMonth[+m.date.slice(5, 7) - 1]++; });
+    const topMonth = perMonth.indexOf(Math.max(...perMonth));
+    const tagCount = {}; ms.forEach(m => m.tags.forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; }));
+    const topTags = Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const songs = [...new Map(ms.filter(m => m.song && m.song.title).map(m => [(m.song.title + '|' + (m.song.artist || '')).toLowerCase(), m.song])).values()];
+    const score = m => m.reactions.length * 2 + m.comments.length + (m.favorite ? 3 : 0) + m.media.filter(x => x.type === 'image').length * 0.5;
+    const best = [...ms].sort((a, b) => score(b) - score(a))[0];
+    const days = settings.start_date && settings.start_date <= `${Y}-12-31`
+      ? Math.max(0, Math.round((parseDate(Y === new Date().getFullYear() ? todayISO() : `${Y}-12-31`) - parseDate(settings.start_date)) / 864e5)) : null;
+    const tile = (n, label) => h('div', { class: 'yr-tile' }, h('b', { text: n.toLocaleString() }), h('span', { text: label }));
+    const snippet = m => (m.text || '').length > 90 ? m.text.slice(0, 90) + '…' : (m.text || 'A memory with no words');
+
+    const yearSel = h('select', { 'aria-label': 'Year', onchange: e => { yearPick = +e.target.value; renderYear(); } },
+      years.map(y => h('option', { value: String(y), selected: y === Y, text: String(y) })));
+    const bookBtn = h('button', { type: 'button', class: 'btn', onclick: async () => {
+      const keep = { q: $('q').value, from: $('from').value, to: $('to').value, fav: $('favOnly').checked, who: $('whoFilter').value, tags: [...activeTags] };
+      $('q').value = ''; $('from').value = `${Y}-01-01`; $('to').value = `${Y}-12-31`; $('favOnly').checked = false; $('whoFilter').value = ''; activeTags.clear();
+      try { await printBook(); }
+      finally { $('q').value = keep.q; $('from').value = keep.from; $('to').value = keep.to; $('favOnly').checked = keep.fav; $('whoFilter').value = keep.who; activeTags.clear(); keep.tags.forEach(t => activeTags.add(t)); }
+    } }, `📖 Photo book of ${Y}`);
+
+    const put = (...nodes) => box.append(...nodes.filter(Boolean));     // skip sections that don't apply
+    put(
+      h('div', { class: 'yr-head' }, h('h2', {}, 'Our ', yearSel), bookBtn),
+      days != null ? h('p', { class: 'yr-sub', text: `💞 ${days.toLocaleString()} days together${Y === new Date().getFullYear() ? ' so far' : ' by the end of ' + Y}` }) : null,
+      h('div', { class: 'yr-tiles' },
+        tile(ms.length, ms.length === 1 ? 'memory' : 'memories'), tile(photos, photos === 1 ? 'photo' : 'photos'),
+        videos ? tile(videos, videos === 1 ? 'video' : 'videos') : null, voice ? tile(voice, 'voice notes') : null,
+        tile(places.length, places.length === 1 ? 'place' : 'places'), tile(words, 'words written'),
+        tile(comments, comments === 1 ? 'comment' : 'comments'), tile(reactions, reactions === 1 ? 'reaction' : 'reactions'),
+        tile(favs, favs === 1 ? 'favorite' : 'favorites')),
+      h('section', { class: 'yr-card' }, h('h3', { text: 'Month by month' }),
+        h('p', { class: 'yr-sub', text: perMonth[topMonth] ? `Busiest: ${monthName(topMonth)} with ${perMonth[topMonth]} ${perMonth[topMonth] === 1 ? 'memory' : 'memories'}` : '' }),
+        h('div', { class: 'yr-bars' }, perMonth.map((n, i) => h('div', { class: 'yr-bar' + (i === topMonth && n ? ' top' : ''), title: `${monthName(i)}: ${n}` },
+          h('i', { style: `height:${Math.max(n ? 8 : 2, Math.round(n / Math.max(...perMonth, 1) * 100))}%` }),
+          h('span', { text: monthName(i).slice(0, 1) }))))),
+      best ? h('section', { class: 'yr-card' }, h('h3', { text: 'Most loved memory' }),
+        h('p', { class: 'yr-quote', text: `“${snippet(best)}”` }),
+        h('p', { class: 'yr-sub', text: `${fmt(best.date)}${best.place ? ' · ' + best.place : ''}` }),
+        h('button', { type: 'button', class: 'btn ghost', onclick: () => jumpTo(best.id) }, 'Open it')) : null,
+      places.length ? h('section', { class: 'yr-card' }, h('h3', { text: 'Places' }), h('div', { class: 'tags' }, places.slice(0, 12).map(p => h('span', { class: 'chip', text: '📍 ' + p })))) : null,
+      topTags.length ? h('section', { class: 'yr-card' }, h('h3', { text: 'Most-used tags' }),
+        h('div', { class: 'tags' }, topTags.map(([t, c]) => h('span', { class: 'chip', text: `#${t} · ${c}` })))) : null,
+      songs.length ? h('section', { class: 'yr-card' }, h('h3', { text: 'Songs of the year' }),
+        h('ul', { class: 'yr-songs' }, songs.slice(0, 12).map(s => h('li', {}, h('b', { text: s.title }), s.artist ? ` · ${s.artist}` : '')))) : null,
+      h('section', { class: 'yr-card' }, h('h3', { text: 'First and last' }),
+        h('p', {}, h('b', { text: 'First: ' }), `${fmt(ms[0].date)}. ${snippet(ms[0])}`),
+        ms.length > 1 ? h('p', {}, h('b', { text: 'Latest: ' }), `${fmt(ms[ms.length - 1].date)}. ${snippet(ms[ms.length - 1])}`) : null));
+  }
   document.querySelectorAll('#tabbar button').forEach(b => { b.onclick = () => { setView(b.dataset.view); render(); $('scroller').scrollTo({ top: 0, behavior: 'instant' }); }; });
   // keep page content clear of the fixed header, whatever height it currently is
   const headerEl = document.querySelector('header');
@@ -1796,13 +2027,23 @@
   }
 
   function drawMedia() {
+    const firstVisual = pending.find(x => x.type !== 'audio');
     $('mediaGrid').replaceChildren(...pending.map(it => {
-      const thumb = it.type === 'image' ? h('img', { src: it.url, alt: '' })
+      const thumb = it.type === 'image' ? h('img', { src: it.thumbUrl || it.url, alt: '' })
         : it.type === 'video' ? h('video', { src: it.url, muted: true, preload: 'metadata' })
         : h('span', { text: '🎙' });
-      return h('div', { class: 'mitem' }, thumb,
-        it.type !== 'image' ? h('small', { text: it.type === 'video' ? 'video' : 'voice' }) : null,
-        h('button', { type: 'button', class: 'x', 'aria-label': 'Remove', text: '×', onclick: () => { pending = pending.filter(x => x !== it); drawMedia(); } }));
+      const visual = it.type !== 'audio';
+      const isCover = visual && it === firstVisual && pending.filter(x => x.type !== 'audio').length > 1;
+      return h('div', { class: 'mcell' },
+        h('div', { class: 'mitem' }, thumb,
+          it.type !== 'image' ? h('small', { text: it.type === 'video' ? 'video' : 'voice' }) : null,
+          isCover ? h('span', { class: 'coverbadge', text: '★ Cover' }) : null,
+          visual && it !== firstVisual ? h('button', { type: 'button', class: 'cover', title: 'Make this the cover photo', 'aria-label': 'Make this the cover photo', text: '★',
+            onclick: () => { pending = [it, ...pending.filter(x => x !== it)]; drawMedia(); } }) : null,
+          h('button', { type: 'button', class: 'x', 'aria-label': 'Remove', text: '×', onclick: () => { pending = pending.filter(x => x !== it); drawMedia(); } })),
+        visual ? h('input', { type: 'text', class: 'mcap', maxlength: '120', placeholder: 'Caption (optional)', value: it.caption || '', 'aria-label': 'Caption',
+          form: 'no-form', oninput: e => { it.caption = e.target.value; },
+          onkeydown: e => { if (e.key === 'Enter') e.preventDefault(); } }) : null);
     }));
   }
   function drawSuggestions() {
@@ -1846,7 +2087,7 @@
       if (!kind) { toast(`${f.name}: unsupported file type`); continue; }
       if (f.size > MAX_FILE) { toast(`${f.name} is over 50 MB, so it was skipped`); continue; }
       try {
-        let blob = f;
+        let blob = f, thumbBlob = null;
         if (kind === 'image') {
           if (!suggestDate && !suggestGps) {
             const ex = await readExif(f);
@@ -1854,8 +2095,9 @@
             if (ex.gps) { suggestGps = ex.gps; drawSuggestions(); await autoFillPlace(ex.gps); }
           }
           blob = await shrink(f);
+          thumbBlob = await shrink(f, 720, 0.8);       // small preview: the timeline loads these, the viewer loads the full photo
         }
-        pending.push({ type: kind, blob, url: URL.createObjectURL(blob) });
+        pending.push({ type: kind, blob, thumbBlob, by: getAuthor() || null, url: URL.createObjectURL(blob), thumbUrl: thumbBlob ? URL.createObjectURL(thumbBlob) : null });
       } catch (e) { toast(e.message); }
     }
     drawMedia(); drawSuggestions();
@@ -1863,8 +2105,8 @@
 
   function openDialog(m) {
     editingId = m ? m.id : null;
-    original = m ? [...m.media] : [];
-    pending = m ? [...m.media] : [];
+    original = m ? m.media.map(x => ({ ...x })) : [];
+    pending = m ? m.media.map(x => ({ ...x })) : [];      // copies, so cancelling never changes the memory
     pendingLat = m ? m.lat : null; pendingLng = m ? m.lng : null;
     pendingSticker = m ? m.sticker : null;
     suggestDate = null; suggestGps = null;
@@ -2007,7 +2249,7 @@
         author: prev ? prev.author : (getAuthor() || null),
       };
       noteMine(draft.id);
-      const removed = original.filter(x => !pending.includes(x));
+      const removed = original.filter(x => x.path && !pending.some(p => p.path === x.path));
       const m = await backend.save(draft, removed);
       memories = prev ? memories.map(x => x.id === m.id ? m : x) : [...memories, m];
       dlg.close();
@@ -2024,13 +2266,16 @@
   let lbList = [], lbIdx = 0, lbReturn = null;
   const lb = $('lb');
   function lbShow() {
-    $('lbImg').src = lbList[lbIdx];
+    const cur = lbList[lbIdx];
+    $('lbImg').src = cur.url;
+    $('lbCaption').textContent = cur.caption || ''; $('lbCaption').hidden = !cur.caption;
     $('lbCount').textContent = `${lbIdx + 1} / ${lbList.length}`;
     lb.classList.toggle('single', lbList.length < 2);
-    if (lbList.length > 1) [1, -1].forEach(d => { new Image().src = lbList[(lbIdx + d + lbList.length) % lbList.length]; }); // warm neighbours
+    if (lbList.length > 1) [1, -1].forEach(d => { new Image().src = lbList[(lbIdx + d + lbList.length) % lbList.length].url; }); // warm neighbours
   }
   function openLightbox(urls, start = 0) {
-    lbList = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
+    // accepts a url, or a list of urls / { url, caption }
+    lbList = (Array.isArray(urls) ? urls : [urls]).filter(Boolean).map(x => typeof x === 'string' ? { url: x, caption: '' } : x);
     if (!lbList.length) return;
     lbIdx = Math.min(Math.max(0, start), lbList.length - 1);
     lbReturn = document.activeElement;
@@ -2059,8 +2304,8 @@
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) lbStep(dx < 0 ? 1 : -1);   // swipe left / right
     else if (dy > 110 && Math.abs(dy) > Math.abs(dx) * 1.4) closeLightbox();                // swipe down to close
   });
-  ['q', 'from', 'to', 'order', 'favOnly'].forEach(id => $(id).addEventListener('input', render));
-  $('clearBtn').onclick = () => { $('q').value = ''; $('from').value = ''; $('to').value = ''; $('favOnly').checked = false; activeTags.clear(); render(); };
+  ['q', 'from', 'to', 'order', 'favOnly', 'whoFilter'].forEach(id => $(id).addEventListener('input', () => { renderLimit = PAGE; render(); }));
+  $('clearBtn').onclick = () => { $('q').value = ''; $('from').value = ''; $('to').value = ''; $('favOnly').checked = false; $('whoFilter').value = ''; activeTags.clear(); renderLimit = PAGE; render(); };
   function setFilters(open) {
     $('filterPanel').hidden = !open;
     $('filterBtn').setAttribute('aria-expanded', String(open));
@@ -2073,12 +2318,9 @@
     $('datesBtn').setAttribute('aria-expanded', String(open));
   };
   $('shuffleBtn').onclick = () => {
-    setView('timeline'); render();
-    const els = [...document.querySelectorAll('.entry')];
-    if (!els.length) return;
-    const el = els[Math.floor(Math.random() * els.length)];
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2000);
+    const pool = visible().filter(m => !isLocked(m));
+    if (!pool.length) return;
+    revealCard(pool[Math.floor(Math.random() * pool.length)].id);   // any memory, even one not drawn yet
   };
 
   /* ---------- settings ---------- */
@@ -2274,13 +2516,14 @@
       s.add('m:' + m.id);
       m.comments.forEach(c => s.add('c:' + c.id));
       m.reactions.forEach(r => s.add('r:' + r.id));
+      m.media.forEach(x => { if (x.path) s.add('p:' + x.path); });
     });
     lists.forEach(l => l.items.forEach(i => s.add('i:' + i.id)));
     return s;
   };
   const signature = (mm, ll) => JSON.stringify([
     mm.map(m => [m.id, m.date, m.text, m.favorite, m.tags, m.unlock, m.song, m.place, m.sticker,
-      m.media.map(x => x.path), m.comments.map(c => c.id), m.reactions.map(r => r.id)]),
+      m.media.map(x => [x.path, x.caption]), m.comments.map(c => c.id), m.reactions.map(r => r.id)]),
     ll.map(l => [l.id, l.title, l.checklist, l.items.map(i => [i.id, i.done, i.text])])]);
   let syncing = false, syncTimer = null;
   async function syncNow() {
@@ -2300,6 +2543,12 @@
         if (!before.has('m:' + m.id) && !mine.has(m.id) && !(m.author && m.author === me))
           msgs.push(m.author ? `💌 ${m.author} added a memory` : '💌 A new memory was added');
         m.comments.forEach(c => { if (!before.has('c:' + c.id) && !mine.has(c.id) && c.author !== me) msgs.push(`💬 ${c.author} left a comment`); });
+        // photos added to a memory that already existed (a brand-new memory is announced above instead)
+        if (before.has('m:' + m.id)) {
+          const adders = new Set();
+          m.media.forEach(x => { if (x.path && !before.has('p:' + x.path) && !mine.has(x.path) && x.by && x.by !== me) adders.add(x.by); });
+          adders.forEach(who => msgs.push(`📸 ${who} added photos to a memory`));
+        }
         m.reactions.forEach(r => { if (!before.has('r:' + r.id) && !mine.has(r.id) && r.author !== me) msgs.push(`${r.emoji} ${r.author} reacted to a memory`); });
       });
       ll.forEach(l => l.items.forEach(i => { if (!before.has('i:' + i.id) && !mine.has(i.id) && !(i.author && i.author === me)) msgs.push('📝 Something was added to a list'); }));
@@ -2422,6 +2671,11 @@
     });
   } else {
     askWho().then(start);
+  }
+
+  // installable app: only on the real https site (never while testing on this computer)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
   }
 })();
 </script>
