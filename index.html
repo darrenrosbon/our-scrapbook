@@ -264,7 +264,7 @@
   .songplay:active { transform: scale(.93); }
   .songplay:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .songplay .ico { width: 18px; height: 18px; fill: currentColor; position: relative; }
-  .songplay .ico.play { transform: translateX(1.5px); }                /* optically centre the triangle */
+  /* the play triangle is drawn pre-shifted so its visual weight sits on the button's centre (no CSS nudge) */
   .songplay .ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); pointer-events: none; }
   .songplay .ring circle { fill: none; stroke-width: 2.5; }
   .songplay .ring .track { stroke: rgba(255,255,255,.28); }
@@ -272,6 +272,15 @@
   .songplay:not(.playing) .ring { display: none; }
   .songlink { font-size: .8rem; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
   .songembed { width: 100%; border: 0; border-radius: 10px; flex-basis: 100%; }
+  .placeresults { display: grid; gap: 4px; max-height: 232px; overflow: auto; }
+  .placeresults:empty { display: none; }
+  .placeresult { display: flex; gap: 10px; align-items: center; text-align: left; min-height: 46px; padding: 8px 10px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--input); border-radius: 10px; }
+  .placeresult:hover, .placeresult:focus-visible { border-color: var(--accent); }
+  .placeresult .pin { font-size: 1.1rem; flex: none; }
+  .placeresult span { min-width: 0; line-height: 1.25; font-size: .95rem; }
+  .placeresult small { display: block; color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #placeStatus { color: var(--accent); }
   .songsearch { display: flex; gap: 6px; }
   .songsearch input { flex: 1; min-width: 0; }
   .songresults { display: grid; gap: 4px; max-height: 190px; overflow: auto; }
@@ -547,8 +556,10 @@
       <textarea id="text" placeholder="What happened? How did it feel?"></textarea>
     </label>
     <label class="field">Place <span class="hint">(optional, adds a pin on the map)</span>
-      <input type="text" id="place" placeholder="e.g. Brighton Beach, UK">
+      <input type="text" id="place" placeholder="Start typing a place…" autocomplete="off" autocapitalize="words" enterkeyhint="search">
     </label>
+    <div class="placeresults" id="placeResults"></div>
+    <div class="hint" id="placeStatus" hidden></div>
     <div class="hint" id="placeAuto" hidden></div>
     <div class="suggest" id="gpsSuggest" hidden>
       <span>📍 This photo has a location.</span><button type="button" id="gpsSuggestBtn">Use location</button>
@@ -1269,7 +1280,7 @@
         `<circle class="bar" cx="21" cy="21" r="19" stroke-dasharray="${RING.toFixed(1)}" stroke-dashoffset="${(RING * (1 - progress)).toFixed(1)}"/></svg>` +
         (isPlaying
           ? '<svg class="ico pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>'
-          : '<svg class="ico play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>');
+          : '<svg class="ico play" viewBox="0 0 24 24" aria-hidden="true"><polygon points="7.4 5 7.4 19 18.4 12" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>');
     };
     paint(false);
     if (btn && s.preview) {
@@ -1737,6 +1748,11 @@
     $('dateSuggest').hidden = !(suggestDate && suggestDate !== cur);
     if (suggestDate) $('dateSuggestText').textContent = `📷 A photo was taken on ${parseDate(suggestDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.`;
     $('gpsSuggest').hidden = !(suggestGps && pendingLat == null);
+    // is there a pin? tell the person, so a typed place never silently ends up without one
+    const ps = $('placeStatus'), typed = $('place').value.trim();
+    if (!typed && pendingLat == null) ps.hidden = true;
+    else if (pendingLat != null) { ps.textContent = '📍 This will be pinned on the map'; ps.hidden = !$('placeAuto').hidden; }
+    else { ps.textContent = 'Tap one of the suggestions to put it on the map'; ps.hidden = false; }
   }
   function drawStickers() {
     $('stickers').replaceChildren(...[null, ...STICKERS].map(s => h('button', {
@@ -1787,7 +1803,7 @@
     pendingLat = m ? m.lat : null; pendingLng = m ? m.lng : null;
     pendingSticker = m ? m.sticker : null;
     suggestDate = null; suggestGps = null;
-    placeUserEdited = !!(m && m.place); placeAutoFilled = false; $('placeAuto').hidden = true;
+    placeUserEdited = !!(m && m.place); placeAutoFilled = false; $('placeAuto').hidden = true; $('placeResults').replaceChildren();
     pendingSong = m && m.song ? { ...m.song } : null;
     $('songUrl').value = pendingSong && pendingSong.url ? pendingSong.url : '';
     $('songQ').value = ''; $('songResults').replaceChildren(); drawSongPick();
@@ -1819,7 +1835,56 @@
     pendingLat = null; pendingLng = null; placeUserEdited = true; placeAutoFilled = false;
     $('placeAuto').hidden = true;
     drawSuggestions();
+    clearTimeout(placeTimer); placeTimer = setTimeout(suggestPlaces, 350);
   });
+  $('place').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(placeTimer); suggestPlaces(); } });
+
+  // --- tappable place suggestions: tapping one fills the name AND sets the map pin ---
+  let placeTimer = null, placeSeq = 0;
+  async function placeLookup(q) {
+    try {          // Photon (OpenStreetMap data, built for type-ahead)
+      const j = await getJson('https://photon.komoot.io/api/?limit=6&q=' + encodeURIComponent(q));
+      const seen = new Set();
+      return (j.features || []).map(f => {
+        const p = f.properties || {}, c = (f.geometry && f.geometry.coordinates) || [];
+        const name = p.name || p.street || p.city || p.state || p.country || '';
+        const context = [p.housenumber && p.street && p.street !== name ? `${p.housenumber} ${p.street}` : (p.street && p.street !== name ? p.street : ''),
+          p.city && p.city !== name ? p.city : '', p.state && p.state !== name ? p.state : '', p.country && p.country !== name ? p.country : ''].filter(Boolean).join(', ');
+        // the list shows full detail; the saved label is short: "Eiffel Tower, Paris, France"
+        const area = p.city && p.city !== name ? p.city : (p.state && p.state !== name ? p.state : '');
+        const label = [name, area, p.country && p.country !== name ? p.country : ''].filter(Boolean).join(', ');
+        return { name, context, label, lat: c[1], lng: c[0] };
+      }).filter(p => p.name && typeof p.lat === 'number' && typeof p.lng === 'number' && !seen.has(p.label) && seen.add(p.label));
+    } catch {      // fallback: OpenStreetMap Nominatim search
+      const j = await getJson('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=' + encodeURIComponent(q));
+      return (j || []).map(x => {
+        const parts = (x.display_name || '').split(',').map(s => s.trim());
+        const name = x.name || parts[0] || '';
+        const context = parts.slice(1).filter(s => !/^[A-Z0-9 ]{4,8}$/.test(s)).slice(-3).join(', ');
+        const tail = context.split(', ').filter(Boolean).slice(-2);
+        return { name, context, label: [name, ...tail].filter((v, i, a) => v && a.indexOf(v) === i).join(', '), lat: +x.lat, lng: +x.lon };
+      }).filter(p => p.name && isFinite(p.lat) && isFinite(p.lng));
+    }
+  }
+  async function suggestPlaces() {
+    const q = $('place').value.trim(), box = $('placeResults');
+    if (q.length < 3) { box.replaceChildren(); return; }
+    const seq = ++placeSeq;
+    let list = [], failed = false;
+    try { list = await placeLookup(q); } catch { failed = true; }
+    if (seq !== placeSeq || $('place').value.trim() !== q) return;      // typed more since: ignore this answer
+    box.replaceChildren(...(list.length
+      ? list.map(p => h('button', { type: 'button', class: 'placeresult', onclick: () => pickPlace(p) },
+          h('span', { class: 'pin', text: '📍', 'aria-hidden': 'true' }),
+          h('span', {}, p.name, p.context ? h('small', { text: p.context }) : null)))
+      : [h('span', { class: 'hint', text: failed ? 'Couldn’t look places up right now. Check your connection.' : 'No matches. Try adding the town or country.' })]));
+  }
+  function pickPlace(p) {
+    $('place').value = p.label;
+    pendingLat = p.lat; pendingLng = p.lng; placeUserEdited = true; placeAutoFilled = false;
+    $('placeResults').replaceChildren(); $('placeAuto').hidden = true;
+    drawSuggestions();
+  }
   const dlg = $('memDialog');
   dlg.addEventListener('dragover', e => e.preventDefault());
   dlg.addEventListener('drop', e => { e.preventDefault(); addFiles([...e.dataTransfer.files]); });
@@ -2024,7 +2089,7 @@
     $('showPlay').setAttribute('aria-label', playing ? 'Pause slideshow' : 'Play slideshow');
     $('showPlay').innerHTML = playing
       ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>'
-      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>';
+      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><polygon points="7.4 5 7.4 19 18.4 12" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>';
     playSlideSong(m);
     if (playing && !(it && it.type === 'video')) showTimer = setTimeout(() => slide(1), 5000);
   }
