@@ -255,7 +255,15 @@
   /* song player */
   .song { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px; background: var(--paper-2); border-radius: 10px; flex-wrap: wrap; }
   .songart { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; display: grid; place-items: center; background: var(--card); font-size: 1.1rem; flex: none; }
-  .songextra { flex-basis: 100%; padding-left: 46px; }
+  .songside { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
+  .songtool {
+    width: 28px; height: 28px; padding: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+    -webkit-appearance: none; appearance: none; text-decoration: none; color: var(--muted); background: var(--card);
+    border: 1px solid var(--line); transition: color .15s, border-color .15s, transform .12s;
+  }
+  .songtool:hover, .songtool:focus-visible { color: var(--accent); border-color: var(--accent); }
+  .songtool:active { transform: scale(.92); }
+  .songtool svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .songmeta { flex: 1; min-width: 0; line-height: 1.25; }
   .songmeta b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
   .songmeta small { color: var(--muted); }
@@ -1309,17 +1317,30 @@
     } else if (btn) {                                    // link only (YouTube/Spotify): the button opens/closes the player
       btn.onclick = () => { const open = !player; showEmbed(open); paint(open); };
     }
+    // a small icon tucked under the artwork: "open the full song" (link) or "show the full player" (embed)
+    const ICON = {
+      ext: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
+      down: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>',
+      up: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 15 12 9 18 15"/></svg>',
+    };
+    let tool = null;
+    if (s.preview && embed) {                            // has both: preview on the big button, full song on request
+      tool = h('button', { class: 'songtool', type: 'button', title: 'Play the full song', 'aria-label': 'Play the full song', 'aria-expanded': 'false' });
+      tool.innerHTML = ICON.down;
+      tool.onclick = () => {
+        showEmbed(!player);
+        tool.innerHTML = player ? ICON.up : ICON.down;
+        tool.title = player ? 'Hide the player' : 'Play the full song';
+        tool.setAttribute('aria-label', tool.title); tool.setAttribute('aria-expanded', String(!!player));
+      };
+    } else if (!embed && (s.url || s.link)) {
+      tool = h('a', { class: 'songtool', href: s.url || s.link, target: '_blank', rel: 'noopener noreferrer', title: 'Open the full song', 'aria-label': 'Open the full song' });
+      tool.innerHTML = ICON.ext;
+    }
     wrap.append(
       btn,
       h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Our song' }), s.artist ? h('small', { text: s.artist }) : null),
-      s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : null);
-    if (s.preview && embed) {                            // has both: preview on the button, full song on request
-      const full = h('button', { class: 'songlink', type: 'button', text: 'Play the full song' });
-      full.onclick = () => { showEmbed(!player); full.textContent = player ? 'Hide the player' : 'Play the full song'; };
-      wrap.append(h('div', { class: 'songextra' }, full));
-    } else if (!embed && (s.url || s.link)) {
-      wrap.append(h('div', { class: 'songextra' }, h('a', { class: 'songlink', href: s.url || s.link, target: '_blank', rel: 'noopener noreferrer', text: 'Open the full song ↗' })));
-    }
+      (s.art || tool) ? h('div', { class: 'songside' }, s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : null, tool) : null);
     return wrap;
   }
 
