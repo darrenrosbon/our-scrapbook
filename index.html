@@ -321,11 +321,15 @@
   .listcard h3 { font-family: 'Caveat', cursive; font-size: 1.7rem; margin: 0 28px 2px 0; line-height: 1.1; }
   .listcard .prog { font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
   .listcard .ldel { position: absolute; top: 10px; right: 10px; border: 0; background: transparent; cursor: pointer; opacity: .6; }
-  .litem { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--line); }
-  .litem label { flex: 1; display: flex; gap: 8px; align-items: baseline; cursor: pointer; overflow-wrap: anywhere; }
-  .litem.done span { text-decoration: line-through; color: var(--muted); }
-  .litem small { color: var(--muted); }
-  .litem .x { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+  .litem { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .litem label { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .litem input[type=checkbox] { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
+  /* item text wraps normally; who added it sits on its own line so it is never squeezed or broken up */
+  .litem .litext { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.35; }
+  .litem .litext small { display: block; margin-top: 2px; font-size: .74rem; color: var(--muted); white-space: nowrap; overflow-wrap: normal; }
+  .litem.done .litext { text-decoration: line-through; color: var(--muted); }
+  .litem.done .litext small { text-decoration: none; }
+  .litem .x { flex: none; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 2px 4px; }
   .itemform { display: flex; gap: 6px; margin-top: 8px; }
   .itemform input { flex: 1; min-width: 0; background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
   .itemform button { border: 0; border-radius: 8px; background: var(--ink); color: var(--paper); padding: 6px 10px; cursor: pointer; }
@@ -1558,7 +1562,7 @@
           draw();
         };
         return h('div', { class: 'litem' + (it.done ? ' done' : '') },
-          h('label', {}, cb, h('span', { text: it.text }), it.author ? h('small', { text: '· ' + it.author }) : null),
+          h('label', {}, cb, h('span', { class: 'litext' }, it.text, it.author ? h('small', { text: 'added by ' + it.author }) : null)),
           h('button', {
             class: 'x', title: 'Remove', 'aria-label': 'Remove item', text: '×',
             onclick: async () => {
