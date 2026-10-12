@@ -1328,7 +1328,8 @@
         if (Math.abs(dx) > 40) (dx < 0 ? next : prev)();
       });
     }
-    wrap.append(cap, credit ? h('div', { class: 'photocredit', text: '📷 ' + credit }) : null);
+    wrap.append(cap);
+    if (credit) wrap.append(h('div', { class: 'photocredit', text: '📷 ' + credit }));
     layout();
     return wrap;
   }
@@ -1450,10 +1451,12 @@
       tool = h('a', { class: 'songtool', href: s.url || s.link, target: '_blank', rel: 'noopener noreferrer', title: 'Open the full song', 'aria-label': 'Open the full song' });
       tool.innerHTML = ICON.ext;
     }
-    wrap.append(
+    // (append() would print an empty value as the word "null", so only real elements go in)
+    wrap.append(...[
       btn,
       h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Our song' }), s.artist ? h('small', { text: s.artist }) : null),
-      (s.art || tool) ? h('div', { class: 'songside' }, s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : null, tool) : null);
+      (s.art || tool) ? h('div', { class: 'songside' }, s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : null, tool) : null,
+    ].filter(Boolean));
     return wrap;
   }
 
@@ -2390,8 +2393,8 @@
     if (it && it.type === 'image') stage.append(h('img', { src: it.url, alt: '' }));
     else if (it) stage.append(h('video', { src: it.url, controls: true, autoplay: true, playsinline: true, onended: () => playing && slide(1) }));
     else stage.append(h('div', { class: 'noimg', text: m.sticker || '💌' }));
-    $('showCap').replaceChildren(h('div', { class: 'sdate', text: fmt(m.date) }), h('div', { text: m.text }),
-      m.song && (m.song.title || m.song.preview) ? h('div', { style: 'opacity:.75;margin-top:6px', text: `🎵 ${m.song.title || 'Our song'}${m.song.artist ? ' — ' + m.song.artist : ''}` }) : null);
+    $('showCap').replaceChildren(...[h('div', { class: 'sdate', text: fmt(m.date) }), h('div', { text: m.text }),
+      m.song && (m.song.title || m.song.preview) ? h('div', { style: 'opacity:.75;margin-top:6px', text: `🎵 ${m.song.title || 'Our song'}${m.song.artist ? ' — ' + m.song.artist : ''}` }) : null].filter(Boolean));
     $('showPos').textContent = `${showIdx + 1} / ${showList.length}`;
     $('showPlay').setAttribute('aria-label', playing ? 'Pause slideshow' : 'Play slideshow');
     $('showPlay').innerHTML = playing
