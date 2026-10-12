@@ -495,6 +495,12 @@
     .spacer { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .polaroid { animation: none; } html { scroll-behavior: auto; } }
+  /* iOS Safari zooms the page whenever a field with text smaller than 16px is focused. Keeping every
+     field at 16px on touch screens stops that, and pinch-to-zoom still works for everything else. */
+  @media (pointer: coarse), (max-width: 720px) {
+    input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]),
+    textarea, select { font-size: 16px !important; }
+  }
 </style>
 </head>
 <body class="locked">
