@@ -314,7 +314,13 @@
   .polaroid.capsule .date { margin-top: 4px; }
   .check { display: flex; gap: 8px; align-items: center; font-size: .95rem; cursor: pointer; }
   /* lists */
-  .newlist { display: flex; gap: 8px; margin-bottom: 10px; }
+  .newlist { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .newlist-check { flex-basis: 100%; display: flex; align-items: center; gap: 8px; font-size: .9rem; padding-left: 6px; cursor: pointer; }
+  .newlist-check input { accent-color: var(--accent); width: 18px; height: 18px; }
+  .ltoggle { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--muted); cursor: pointer; margin: 0 0 6px; user-select: none; }
+  .ltoggle input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  .litem .bullet { flex: none; width: 18px; text-align: center; color: var(--accent); line-height: 1.35; }
+  .litem label.plain { cursor: default; }
   .newlist input { flex: 1; min-width: 0; background: var(--input); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; }
   .lists { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-top: 16px; }
   .listcard { background: var(--card); box-shadow: var(--shadow); padding: 16px 16px 14px; border-radius: 4px; position: relative; transform: rotate(var(--tilt, 0deg)); }
@@ -535,6 +541,7 @@
     <form id="newListForm" class="newlist">
       <input id="newListTitle" type="text" maxlength="80" placeholder="New list, e.g. Places we want to go" aria-label="New list title">
       <button class="btn" type="submit">Add list</button>
+      <label class="newlist-check"><input type="checkbox" id="newListCheck"> Tick boxes <span class="hint">(a to-do style list; you can change this any time)</span></label>
     </form>
     <div id="listSuggest" class="tags"></div>
     <div id="lists" class="lists"></div>
@@ -869,7 +876,8 @@
       _lists() { try { return JSON.parse(store.get('scrapbook-lists') || '[]'); } catch { return []; } },
       _saveLists(l) { store.set('scrapbook-lists', JSON.stringify(l)); },
       async loadLists() { return this._lists(); },
-      async createList(title) { const all = this._lists(), l = { id: crypto.randomUUID(), title, items: [] }; all.push(l); this._saveLists(all); return l; },
+      async createList(title, checklist = false) { const all = this._lists(), l = { id: crypto.randomUUID(), title, checklist: !!checklist, items: [] }; all.push(l); this._saveLists(all); return l; },
+      async setListChecklist(l, v) { const all = this._lists(); const x = all.find(y => y.id === l.id); if (x) x.checklist = !!v; this._saveLists(all); },
       async deleteList(l) { this._saveLists(this._lists().filter(x => x.id !== l.id)); },
       async addItem(l, text, author) {
         const all = this._lists(), it = { id: crypto.randomUUID(), text, done: false, author, created: Date.now() };
@@ -974,13 +982,23 @@
       if (i.error) throw i.error;
       return l.data.map(x => ({
         id: x.id, title: x.title, created: Date.parse(x.created_at),
+        // lists made before the checklist option existed keep their tick boxes
+        checklist: x.checklist == null ? true : !!x.checklist,
         items: i.data.filter(it => it.list_id === x.id).map(it => ({ id: it.id, text: it.text, done: it.done, author: it.author, created: Date.parse(it.created_at) })),
       }));
     },
-    async createList(title) {
-      const { data, error } = await sb.from('lists').insert({ title }).select().single();
+    async createList(title, checklist = false) {
+      let { data, error } = await sb.from('lists').insert({ title, checklist: !!checklist }).select().single();
+      // before migration 6 the "checklist" column doesn't exist: create the list without it
+      if (error && (error.code === 'PGRST204' || /checklist/i.test(error.message || ''))) {
+        ({ data, error } = await sb.from('lists').insert({ title }).select().single());
+      }
       if (error) throw error;
-      return { id: data.id, title: data.title, created: Date.parse(data.created_at), items: [] };
+      return { id: data.id, title: data.title, created: Date.parse(data.created_at), checklist: data.checklist == null ? !!checklist : !!data.checklist, items: [] };
+    },
+    async setListChecklist(l, v) {
+      const { error } = await sb.from('lists').update({ checklist: !!v }).eq('id', l.id);
+      if (error) throw error;
     },
     async deleteList(l) {
       const { error } = await sb.from('lists').delete().eq('id', l.id);
@@ -1540,29 +1558,35 @@
   new ResizeObserver(() => document.documentElement.style.setProperty('--hh', headerEl.offsetHeight + 'px')).observe(headerEl);
 
   /* ---------- lists ---------- */
-  const LIST_IDEAS = ['Places we want to go', 'Things I love about you', 'Date ideas', 'Bucket list'];
-  async function createList(title) {
+  // [title, tick-off list?]: a tick-off list gets checkboxes, a plain list is just a list
+  const LIST_IDEAS = [['Places we want to go', true], ['Things I love about you', false], ['Date ideas', true], ['Bucket list', true]];
+  const isChecklist = l => l.checklist !== false;           // older lists have no setting and keep their boxes
+  async function createList(title, checklist = false) {
     title = title.trim();
     if (!title) return;
-    try { const l = await backend.createList(title); noteMine(l.id); if (!lists.some(x => x.id === l.id)) lists.push(l); }
+    try { const l = await backend.createList(title, checklist); noteMine(l.id); if (!lists.some(x => x.id === l.id)) lists.push(l); }
     catch (err) { toast('Could not create list: ' + err.message); return; }
     renderLists();
   }
   function buildList(l) {
     const itemsBox = h('div'), prog = h('div', { class: 'prog' });
     const draw = () => {
+      const check = isChecklist(l);
       const done = l.items.filter(i => i.done).length;
-      prog.textContent = l.items.length ? `${done} of ${l.items.length} done` : 'Nothing here yet';
+      prog.textContent = !l.items.length ? 'Nothing here yet' : check ? `${done} of ${l.items.length} done` : `${l.items.length} item${l.items.length === 1 ? '' : 's'}`;
       itemsBox.replaceChildren(...[...l.items].sort((a, b) => a.created - b.created).map(it => {
-        const cb = h('input', { type: 'checkbox', checked: it.done });
-        cb.checked = it.done;
-        cb.onchange = async () => {
-          it.done = cb.checked;
-          try { await backend.setItemDone(l, it); } catch (e) { toast('Could not update'); it.done = !it.done; }
-          draw();
-        };
-        return h('div', { class: 'litem' + (it.done ? ' done' : '') },
-          h('label', {}, cb, h('span', { class: 'litext' }, it.text, it.author ? h('small', { text: 'added by ' + it.author }) : null)),
+        let marker;
+        if (check) {
+          marker = h('input', { type: 'checkbox', checked: it.done, 'aria-label': 'Done' });
+          marker.checked = it.done;
+          marker.onchange = async () => {
+            it.done = marker.checked;
+            try { await backend.setItemDone(l, it); } catch (e) { toast('Could not update'); it.done = !it.done; }
+            draw();
+          };
+        } else marker = h('span', { class: 'bullet', 'aria-hidden': 'true', text: '•' });
+        return h('div', { class: 'litem' + (check && it.done ? ' done' : '') },
+          h('label', { class: check ? '' : 'plain' }, marker, h('span', { class: 'litext' }, it.text, it.author ? h('small', { text: 'added by ' + it.author }) : null)),
           h('button', {
             class: 'x', title: 'Remove', 'aria-label': 'Remove item', text: '×',
             onclick: async () => {
@@ -1587,6 +1611,16 @@
         input.value = ''; draw();
       },
     }, input, h('button', { type: 'submit', text: 'Add' }));
+    // per-list switch: show tick boxes (a to-do style list) or keep it a plain list
+    const tickBox = h('input', { type: 'checkbox', 'aria-label': 'Tick boxes' });
+    tickBox.checked = isChecklist(l);
+    tickBox.onchange = async () => {
+      const was = isChecklist(l);
+      l.checklist = tickBox.checked;
+      try { await backend.setListChecklist(l, l.checklist); } catch (e) { toast('Could not change the list: ' + e.message); l.checklist = was; tickBox.checked = was; }
+      draw();
+    };
+    const tick = h('label', { class: 'ltoggle', title: 'Show a tick box beside each item' }, tickBox, h('span', { text: 'Tick boxes' }));
     draw();
     return h('div', { class: 'listcard', style: `--tilt:${tilt(l.id) / 2}deg` },
       h('button', {
@@ -1597,19 +1631,19 @@
           lists = lists.filter(x => x.id !== l.id); renderLists();
         },
       }),
-      h('h3', { text: l.title }), prog, itemsBox, form);
+      h('h3', { text: l.title }), prog, tick, itemsBox, form);
   }
   function renderLists() {
     $('empty').hidden = true;
-    $('listSuggest').replaceChildren(...(lists.length ? [] : LIST_IDEAS.map(t =>
-      h('button', { class: 'chip', text: '+ ' + t, onclick: () => createList(t) }))));
+    $('listSuggest').replaceChildren(...(lists.length ? [] : LIST_IDEAS.map(([t, check]) =>
+      h('button', { class: 'chip', title: check ? 'with tick boxes' : 'plain list', text: '+ ' + t, onclick: () => createList(t, check) }))));
     $('lists').replaceChildren(...[...lists].sort((a, b) => (a.created || 0) - (b.created || 0)).map(buildList));
   }
   $('newListForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const t = $('newListTitle').value;
+    const t = $('newListTitle').value, check = $('newListCheck').checked;
     $('newListTitle').value = '';
-    await createList(t);
+    await createList(t, check);
   });
 
   /* ---------- add / edit dialog ---------- */
@@ -2190,7 +2224,7 @@
       let done = 0;
       const data = {
         app: 'Our Scrapbook', exported_at: new Date().toISOString(), version: 1, settings,
-        lists: lists.map(l => ({ title: l.title, items: l.items.map(i => ({ text: i.text, done: i.done, author: i.author })) })),
+        lists: lists.map(l => ({ title: l.title, checklist: l.checklist !== false, items: l.items.map(i => ({ text: i.text, done: i.done, author: i.author })) })),
         memories: [],
       };
       for (const m of memories) {
@@ -2247,7 +2281,7 @@
   const signature = (mm, ll) => JSON.stringify([
     mm.map(m => [m.id, m.date, m.text, m.favorite, m.tags, m.unlock, m.song, m.place, m.sticker,
       m.media.map(x => x.path), m.comments.map(c => c.id), m.reactions.map(r => r.id)]),
-    ll.map(l => [l.id, l.title, l.items.map(i => [i.id, i.done, i.text])])]);
+    ll.map(l => [l.id, l.title, l.checklist, l.items.map(i => [i.id, i.done, i.text])])]);
   let syncing = false, syncTimer = null;
   async function syncNow() {
     if (syncing || !document.body || document.body.classList.contains('locked')) return;
