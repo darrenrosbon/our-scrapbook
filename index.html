@@ -1,0 +1,2081 @@
+<!doctype html>
+<html lang="en" data-theme="paper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our Scrapbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --paper: #f6efe3; --paper-2: #efe5d3; --ink: #3b2f2a; --muted: #8a7a6c;
+    --accent: #b8473d; --tape: rgba(226,190,120,.65); --card: #fffdf8;
+    --input: #ffffff; --line: rgba(120,90,50,.3); --dots: rgba(120,90,50,.06);
+    --header-bg: rgba(246,239,227,.92); --shadow: 0 6px 18px rgba(60,40,20,.18);
+    color-scheme: light;
+  }
+  [data-theme=blush] {
+    --paper: #fbeceb; --paper-2: #f5d9d7; --ink: #4a2c32; --muted: #9a7078; --accent: #c2506b;
+    --tape: rgba(240,170,185,.6); --card: #fffafa; --line: rgba(160,80,100,.3); --dots: rgba(160,80,100,.07);
+    --header-bg: rgba(251,236,235,.92);
+  }
+  [data-theme=sage] {
+    --paper: #eef1e6; --paper-2: #dde4cf; --ink: #2f3a2c; --muted: #6f7d66; --accent: #4f7a4a;
+    --tape: rgba(190,205,150,.65); --card: #fbfdf6; --line: rgba(80,110,70,.3); --dots: rgba(80,110,70,.07);
+    --header-bg: rgba(238,241,230,.92);
+  }
+  [data-theme=midnight] {
+    --paper: #1c1a24; --paper-2: #2a2735; --ink: #eee6ff; --muted: #a79cc0; --accent: #e0709a;
+    --tape: rgba(160,140,220,.45); --card: #292636; --input: #1f1d29; --line: rgba(190,170,240,.3);
+    --dots: rgba(190,170,240,.07); --header-bg: rgba(28,26,36,.92); --shadow: 0 6px 18px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body.locked header, body.locked main, body.locked #tabbar { visibility: hidden; }
+  html { height: 100%; overflow: hidden; }
+  body {
+    margin: 0; color: var(--ink); background: var(--paper);
+    background-image: radial-gradient(var(--dots) 1px, transparent 1px); background-size: 18px 18px;
+    font-family: 'Fraunces', Georgia, serif;
+    height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  #scroller { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  /* ----- top bar ----- */
+  header {
+    /* app-shell layout: the header and tab bar never move; only #scroller scrolls */
+    position: relative; flex: none; z-index: 50; background: var(--paper);
+    padding: 12px 16px 10px; box-shadow: 0 1px 0 var(--line), 0 6px 16px -10px rgba(60,40,20,.35);
+  }
+  header::after { /* thin red thread along the bottom edge */
+    content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+    background: repeating-linear-gradient(90deg, #c22d22 0 10px, transparent 10px 16px); opacity: .55;
+  }
+  .topbar, .toolbar, .tagbar { max-width: 1000px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+  .topbar { justify-content: space-between; flex-wrap: wrap; row-gap: 8px; }
+  .brand { display: flex; flex-direction: column; min-width: 0; }
+  h1 { font-family: 'Caveat', cursive; font-size: 2.3rem; margin: 0; line-height: .95; letter-spacing: .01em; }
+  .stats { font-size: .8rem; color: var(--muted); line-height: 1.3; }
+  .stats .next { color: var(--accent); }
+  #nextUp { display: none; color: var(--accent); font-weight: 600; text-align: center; }
+  .stats button { background: none; border: 0; color: var(--accent); cursor: pointer; text-decoration: underline; padding: 0; font: inherit; }
+  .actions-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn { border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; background: var(--accent); color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn svg, .icon svg, .field-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 0; transition: background .15s, transform .15s; }
+  .icon:hover { background: var(--paper-2); transform: translateY(-1px); }
+  .icon svg circle { fill: currentColor; stroke: none; }
+  #moreBtn { display: none; }
+  #tabbar { display: none; }
+  .testbanner { flex: none; background: #1b5e20; color: #fff; text-align: center; font: 600 .78rem/1.3 system-ui, sans-serif; padding: 4px 10px; z-index: 60; }
+  .menu {
+    position: fixed; right: 16px; top: calc(var(--hh, 62px) + 4px); z-index: 60; display: grid; min-width: 210px; padding: 6px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  }
+  .menu button { text-align: left; border: 0; background: transparent; padding: 11px 12px; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+  .menu button:hover { background: var(--paper-2); }
+  .icon.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #filterPanel { animation: drop .2s ease; }
+  @keyframes drop { from { opacity: 0; transform: translateY(-6px); } }
+  /* favourite heart: small button on the card's top-right corner */
+  .favbtn {
+    position: absolute; top: -13px; right: -13px; z-index: 6; width: 34px; height: 34px; border-radius: 50%;
+    border: 0; background: var(--card); color: var(--muted); font-size: 1.15rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.28); display: grid; place-items: center; transition: transform .15s, color .15s;
+  }
+  .favbtn:hover { transform: scale(1.12); }
+  .favbtn.on { color: #d6335a; animation: heart .35s ease; }
+  @keyframes heart { 40% { transform: scale(1.35); } }
+  .seg { display: inline-flex; background: var(--paper-2); border-radius: 999px; padding: 3px; }
+  .seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; cursor: pointer; font-size: .9rem; }
+  .seg button.on { background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.18); font-weight: 600; }
+  .toolbar { margin-top: 10px; flex-wrap: wrap; row-gap: 8px; }
+  .searchbox { position: relative; flex: 1 1 240px; min-width: 180px; }
+  .searchbox .field-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); display: grid; pointer-events: none; }
+  .searchbox input { width: 100%; background: var(--input); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px 9px 38px; }
+  .searchbox input:focus, .pill select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--input); border-radius: 999px; padding: 0 12px; height: 38px; font-size: .88rem; cursor: pointer; white-space: nowrap; }
+  .pill select { border: 0; background: transparent; padding: 0 2px; cursor: pointer; }
+  .pill.on, .pill:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pill input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
+  .pill:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .daterange { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted); }
+  .daterange input { background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .count { font-size: .8rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .tagbar { margin-top: 8px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: thin; }
+  .tagbar .chip { flex: none; }
+  .tagbar:empty { display: none; }
+  .chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: .8rem; cursor: pointer; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 120px; position: relative; }
+  .otd { background: var(--paper-2); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; font-size: .95rem; }
+  .otd button { background: none; border: 0; color: var(--accent); cursor: pointer; text-decoration: underline; padding: 0; font: inherit; }
+  .timeline { position: relative; }
+  /* red string: twisted-thread look, with a soft shadow so it sits on the paper */
+  #string { position: absolute; top: 0; pointer-events: none; overflow: visible; filter: drop-shadow(1px 2px 2px rgba(60,20,10,.35)); }
+  .group-title { position: relative; z-index: 2; text-align: center; margin: 36px 0 18px; font-family: 'Caveat', cursive; font-size: 1.8rem; }
+  .group-title span { background: var(--paper-2); padding: 2px 18px; border-radius: 999px; border: 1px solid var(--line); }
+  .entry { position: relative; width: 50%; padding: 14px 36px; }
+  .entry.right { margin-left: 50%; }
+  /* a little knot where each memory is tied to the string */
+  .entry::after {
+    content: ''; position: absolute; top: 40px; width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f0705f, #b3261e 60%, #7d1510); box-shadow: 1px 2px 3px rgba(60,20,10,.4);
+  }
+  .entry:not(.right)::after { right: calc(-8px - var(--kx, 0px)); }
+  .entry.right::after { left: calc(-8px + var(--kx, 0px)); }
+  .entry.flash .polaroid { outline: 3px solid var(--accent); outline-offset: 4px; }
+  .polaroid { position: relative; background: var(--card); padding: 12px 12px 14px; box-shadow: var(--shadow); transform: rotate(var(--tilt, 0deg)); transition: transform .2s; animation: pop .5s ease both; }
+  .polaroid:hover { transform: rotate(0deg) scale(1.01); z-index: 3; }
+  .polaroid::before { content: ''; position: absolute; top: -12px; left: 50%; width: 90px; height: 24px; background: var(--tape); transform: translateX(-50%) rotate(-3deg); }
+  .sticker { position: absolute; top: -18px; left: -14px; font-size: 2.2rem; transform: rotate(-12deg); filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); z-index: 4; pointer-events: none; }
+  .carousel { position: relative; touch-action: pan-y; }
+  .stack { position: relative; aspect-ratio: 4 / 3; margin-bottom: 14px; }
+  .slide {
+    position: absolute; inset: 0; background: #1d1d1d; border: 6px solid var(--card); box-shadow: 0 2px 8px rgba(0,0,0,.28);
+    transition: transform .38s cubic-bezier(.3,.7,.3,1), opacity .38s; will-change: transform;
+  }
+  .slide img, .slide video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .slide img { cursor: zoom-in; }
+  .slide video { object-fit: contain; }
+  .slide[data-p="0"] { transform: none; z-index: 10; }
+  .slide[data-p="1"] { transform: translate(7px, 6px) rotate(2.2deg); z-index: 9; }
+  .slide[data-p="2"] { transform: translate(-7px, 9px) rotate(-2.6deg); z-index: 8; }
+  .slide[data-p="3"] { transform: translate(0, 10px) rotate(1deg); z-index: 7; opacity: 0; }
+  .slide:not([data-p="0"]) { pointer-events: none; }
+  .slide.leave { transform: translateX(112%) rotate(9deg) !important; z-index: 11 !important; }
+  .slide.notrans { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+  .nav { z-index: 20; position: absolute; top: 50%; transform: translateY(-50%); border: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.88); color: #333; font-size: 1.4rem; line-height: 1; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+  .nav.prev { left: 8px; } .nav.next { right: 8px; }
+  .counter { z-index: 20; position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,.6); color: #fff; font-size: .75rem; padding: 2px 8px; border-radius: 999px; }
+  /* text-only memories: a lined note instead of a photo frame */
+  .polaroid.note {
+    padding: 22px 18px 14px;
+    background: repeating-linear-gradient(transparent 0 31px, rgba(110,140,190,.28) 31px 32px), var(--card);
+    background-position: 0 6px;
+  }
+  .polaroid.note .date { margin-top: 0; line-height: 32px; font-size: 1.35rem; }
+  .polaroid.note .place { line-height: 32px; }
+  .polaroid.note .text { font-family: 'Caveat', cursive; font-size: 1.55rem; line-height: 32px; margin-top: 0; }
+  .polaroid.note .tags, .polaroid.note audio { margin-top: 10px; }
+  .date { font-family: 'Caveat', cursive; font-size: 1.5rem; margin-top: 10px; color: var(--accent); }
+  .place { font-size: .8rem; color: var(--muted); }
+  .text { margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .tags .chip { font-size: .72rem; padding: 1px 8px; }
+  audio { width: 100%; margin-top: 8px; height: 36px; }
+  .actions { position: absolute; top: 18px; right: 18px; display: flex; gap: 6px; z-index: 5; }
+  .actions button { border: 0; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; background: rgba(255,255,255,.92); color: #333; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  .actions .edit, .actions .del { opacity: 0; transition: opacity .15s; }
+  .polaroid:hover .edit, .polaroid:hover .del, .polaroid:focus-within .edit, .polaroid:focus-within .del { opacity: 1; }
+  .actions .fav.on { color: #d6335a; }
+  @media (hover: none) { .actions .edit, .actions .del { opacity: 1; } }
+  .comments { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; font-size: .9rem; }
+  .comment { display: flex; gap: 6px; align-items: baseline; margin-bottom: 4px; }
+  .comment b { color: var(--accent); }
+  .comment span { overflow-wrap: anywhere; flex: 1; }
+  .cdel { border: 0; background: none; color: var(--muted); cursor: pointer; opacity: .6; }
+  .cform { display: flex; gap: 6px; margin-top: 6px; }
+  .cform input { flex: 1; min-width: 0; background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: .9rem; }
+  .cform button { border: 0; border-radius: 8px; padding: 6px 10px; background: var(--ink); color: var(--paper); cursor: pointer; }
+  @keyframes pop { from { opacity: 0; transform: translateY(24px) rotate(var(--tilt,0deg)); } }
+
+  .empty { text-align: center; padding: 80px 16px; color: var(--muted); }
+  .empty .big { font-family: 'Caveat', cursive; font-size: 2.2rem; color: var(--ink); }
+  #mapWrap { position: relative; }
+  #map { height: calc(100dvh - var(--hh, 130px) - 110px); min-height: 320px; border-radius: 12px; border: 1px solid var(--line); z-index: 1; }
+  #mapEmpty { position: absolute; inset: 0; display: grid; place-items: center; z-index: 5; pointer-events: none; text-align: center; color: #333; background: rgba(255,255,255,.55); border-radius: 12px; }
+  .pop img { width: 160px; max-height: 120px; object-fit: cover; display: block; margin-bottom: 4px; }
+
+  dialog { border: 0; border-radius: 14px; padding: 0; background: var(--card); color: var(--ink); width: min(520px, 94vw); max-height: 92vh; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  dialog::backdrop { background: rgba(40,25,15,.55); }
+  form.memory { padding: 20px; display: grid; gap: 14px; }
+  form.memory h2 { font-family: 'Caveat', cursive; font-size: 2rem; margin: 0; }
+  .field { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .field input, .field textarea, .field select { background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--ink); font-size: 1rem; }
+  .field textarea { min-height: 90px; resize: vertical; }
+  .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .hint { font-size: .8rem; }
+  .suggest { background: var(--paper-2); border: 1px dashed var(--line); border-radius: 8px; padding: 6px 10px; font-size: .85rem; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .suggest button { border: 0; background: var(--accent); color: #fff; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+  .mediagrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .mitem { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--paper-2); display: grid; place-items: center; font-size: 1.6rem; }
+  .mitem img, .mitem video { width: 100%; height: 100%; object-fit: cover; }
+  .mitem .x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; line-height: 1; }
+  .mitem small { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.6); color: #fff; font-size: .65rem; padding: 0 5px; border-radius: 4px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .who { display: grid; gap: 8px; }
+  .whotitle { font-family: 'Caveat', cursive; font-size: 1.4rem; }
+  .whorow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .whobtn {
+    display: grid; justify-items: center; padding: 14px 8px; cursor: pointer; border-radius: 14px;
+    border: 2px solid var(--line); background: var(--input);
+  }
+  .whobtn .ini { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--paper-2); font: 700 2.2rem 'Caveat', cursive; }
+  .whobtn.on { border-color: var(--accent); background: var(--paper-2); }
+  .whobtn.on .ini { background: var(--accent); color: #fff; }
+  .by { font-size: .85rem; color: var(--muted); font-style: italic; }
+  .group { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+  .group legend { font-family: 'Caveat', cursive; font-size: 1.3rem; padding: 0 6px; }
+  .sprow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .sprow input[type=text] { flex: 1 1 150px; min-width: 0; }
+  .sprow input, .sprow select { background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; color: var(--ink); }
+  .sprow .x { border: 0; background: transparent; color: var(--muted); font-size: 1.3rem; cursor: pointer; }
+  .occasion { display: inline-block; background: var(--accent); color: #fff; font-size: .8rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; margin-top: 10px; }
+  .occasion-hint { font-size: .85rem; color: var(--accent); margin-top: -8px; }
+  /* big knots for special days (valentine's, birthdays, anniversaries) */
+  .entry.special::after {
+    content: attr(data-emoji); width: 44px; height: 44px; top: 26px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; background: radial-gradient(circle at 35% 30%, #f6836f, #c22d22 60%, #861510);
+    box-shadow: 0 0 0 4px var(--paper), 0 0 0 6px rgba(194,45,34,.55), 2px 4px 8px rgba(60,20,10,.45); z-index: 3;
+  }
+  .entry.special:not(.right)::after { right: calc(-22px - var(--kx, 0px)); }
+  .entry.special.right::after { left: calc(-22px + var(--kx, 0px)); }
+  @media (max-width: 720px) { .entry.special:not(.right)::after, .entry.special.right::after { left: calc(-8px + var(--kx, 0px)); right: auto; } }
+  /* song player */
+  .song { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px; background: var(--paper-2); border-radius: 10px; flex-wrap: wrap; }
+  .songart { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; display: grid; place-items: center; background: var(--card); font-size: 1.3rem; flex: none; }
+  .songmeta { flex: 1; min-width: 0; line-height: 1.25; }
+  .songmeta b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+  .songmeta small { color: var(--muted); }
+  .songplay { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; cursor: pointer; flex: none; }
+  .songlink { font-size: .8rem; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
+  .songembed { width: 100%; border: 0; border-radius: 10px; flex-basis: 100%; }
+  .songsearch { display: flex; gap: 6px; }
+  .songsearch input { flex: 1; min-width: 0; }
+  .songresults { display: grid; gap: 4px; max-height: 190px; overflow: auto; }
+  .songresult { display: flex; gap: 8px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--input); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+  .songresult img { width: 36px; height: 36px; border-radius: 4px; }
+  .songresult span { min-width: 0; line-height: 1.2; font-size: .9rem; }
+  .songresult small { color: var(--muted); display: block; }
+  /* reactions */
+  .reactions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .react { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 2px 9px; font-size: .95rem; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  .react:hover { background: var(--paper-2); }
+  .react.on { background: var(--paper-2); border-color: var(--accent); }
+  .react .rn { font-size: .75rem; color: var(--muted); }
+  /* time capsule (locked) */
+  .polaroid.capsule { text-align: center; padding: 26px 18px 18px; background: repeating-linear-gradient(45deg, var(--card) 0 14px, var(--paper-2) 14px 28px); }
+  .polaroid.capsule .seal { font-size: 3.2rem; }
+  .polaroid.capsule .date { margin-top: 4px; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: .95rem; cursor: pointer; }
+  /* lists */
+  .newlist { display: flex; gap: 8px; margin-bottom: 10px; }
+  .newlist input { flex: 1; min-width: 0; background: var(--input); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; }
+  .lists { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-top: 16px; }
+  .listcard { background: var(--card); box-shadow: var(--shadow); padding: 16px 16px 14px; border-radius: 4px; position: relative; transform: rotate(var(--tilt, 0deg)); }
+  .listcard h3 { font-family: 'Caveat', cursive; font-size: 1.7rem; margin: 0 28px 2px 0; line-height: 1.1; }
+  .listcard .prog { font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+  .listcard .ldel { position: absolute; top: 10px; right: 10px; border: 0; background: transparent; cursor: pointer; opacity: .6; }
+  .litem { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .litem label { flex: 1; display: flex; gap: 8px; align-items: baseline; cursor: pointer; overflow-wrap: anywhere; }
+  .litem.done span { text-decoration: line-through; color: var(--muted); }
+  .litem small { color: var(--muted); }
+  .litem .x { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+  .itemform { display: flex; gap: 6px; margin-top: 8px; }
+  .itemform input { flex: 1; min-width: 0; background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .itemform button { border: 0; border-radius: 8px; background: var(--ink); color: var(--paper); padding: 6px 10px; cursor: pointer; }
+  /* printable photo book */
+  #book { display: none; }
+  @media print {
+    @page { size: A4; margin: 14mm; }
+    html, body.printing-book { height: auto !important; overflow: visible !important; }
+    body.printing-book { display: block !important; background: #fff !important; background-image: none !important; }
+    body.printing-book > *:not(#book) { display: none !important; }
+    body.printing-book #book { display: block; color: #2b211d; font-family: 'Fraunces', Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .bpage { break-after: page; min-height: 255mm; display: flex; flex-direction: column; gap: 6mm; }
+    .bpage.cover { justify-content: center; align-items: center; text-align: center; border: 2mm solid #b3261e; padding: 20mm; }
+    .bk-title { font-family: 'Caveat', cursive; font-size: 64pt; line-height: 1; }
+    .bk-sub { font-size: 16pt; color: #6b5b52; }
+    .bk-count { font-size: 12pt; color: #6b5b52; }
+    .bk-photos { display: grid; gap: 4mm; }
+    .bk-photos.n1 { grid-template-columns: 1fr; }
+    .bk-photos:not(.n1) { grid-template-columns: 1fr 1fr; }
+    .bk-photos img { width: 100%; height: 80mm; object-fit: cover; border: 2mm solid #fff; box-shadow: 0 0 0 .3mm #ddd; }
+    .bk-photos.n1 img { height: 150mm; }
+    .bk-date { font-family: 'Caveat', cursive; font-size: 26pt; color: #b3261e; }
+    .bk-occ, .bk-meta { font-size: 11pt; color: #6b5b52; }
+    .bk-text { font-size: 13pt; line-height: 1.5; white-space: pre-wrap; }
+    .bk-comments { font-size: 10.5pt; color: #4a3f39; border-top: .3mm dashed #bbb; padding-top: 3mm; }
+  }
+  .stickers { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stickers button { border: 2px solid transparent; background: var(--paper-2); border-radius: 8px; width: 38px; height: 38px; font-size: 1.3rem; cursor: pointer; }
+  .stickers button.on { border-color: var(--accent); }
+
+  .lightbox { width: auto; max-width: 96vw; background: transparent; box-shadow: none; }
+  .lightbox img { max-width: 94vw; max-height: 90vh; display: block; border-radius: 6px; }
+  #show { position: fixed; inset: 0; z-index: 100; background: #0c0a10; color: #fff; display: flex; flex-direction: column; }
+  #showStage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 12px; }
+  #showStage img, #showStage video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+  #showStage .noimg { font-size: 7rem; }
+  #showCap { text-align: center; padding: 6px 20px 10px; max-width: 800px; margin: 0 auto; }
+  .sdate { font-family: 'Caveat', cursive; font-size: 1.8rem; color: #ffb3c1; }
+  #showBar { display: flex; gap: 10px; justify-content: center; align-items: center; padding: 0 12px 16px; }
+  #showBar button { border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff; border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 10px; z-index: 200; max-width: 90vw; }
+
+  /* mobile header: title + filter + menu + add on one row, tabs on the next */
+  @media (max-width: 720px) {
+    header { padding: 10px 14px 8px; }
+    .topbar {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto;
+      grid-template-areas: "brand filter more add"; gap: 8px; align-items: center; flex-wrap: nowrap;
+    }
+    .actions-bar { display: contents; }
+    .brand { grid-area: brand; }
+    #filterBtn { grid-area: filter; }
+    #moreBtn { grid-area: more; display: grid; }
+    #addBtn { grid-area: add; width: 40px; height: 40px; padding: 0; border-radius: 50%; justify-content: center; }
+    #addBtn .lbl { display: none; }
+    #showBtn, #shuffleBtn, #bookBtn, #settingsBtn, #signOutBtn { display: none; }
+    h1 { font-size: 1.9rem; }
+    .stats { font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stats .next { display: none; }
+    .hide-sm { display: none; }
+    #nextUp { display: block; }
+    .toolbar { margin-top: 8px; }
+    .menu { right: 12px; }
+    /* the three views live in a bottom bar, like a phone app, so the top bar stays slim and steady */
+    .seg { display: none; }
+    #tabbar {
+      flex: none; display: flex; padding: 4px; margin: 4px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 2px 10px rgba(0,0,0,.2);
+    }
+    #tabbar button { flex: 1; border: 0; background: transparent; padding: 10px 8px; border-radius: 999px; font-size: .95rem; cursor: pointer; }
+    #tabbar button.on { background: var(--ink); color: var(--paper); font-weight: 600; }
+    main { padding-bottom: 32px; }
+    #filterPanel { max-height: calc(100dvh - 130px); overflow-y: auto; }
+  }
+  @media (max-width: 720px) {
+    .entry::after { top: 41px; }
+    .entry, .entry.right { width: 100%; margin-left: 0; padding: 14px 0 14px 40px; }
+    .entry:not(.right)::after, .entry.right::after { left: calc(6px + var(--kx, 0px)); right: auto; }
+    .group-title { text-align: left; padding-left: 28px; }
+    .spacer { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .polaroid { animation: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body class="locked">
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <h1>Our Scrapbook</h1>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="actions-bar">
+      <div class="seg" role="group" aria-label="View">
+        <button id="viewTimeline" class="on">Timeline</button>
+        <button id="viewMap">Map</button>
+        <button id="viewLists">Lists</button>
+      </div>
+      <button class="icon" id="bookBtn" aria-label="Make a photo book (PDF)" title="Photo book (uses your current filters)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </button>
+      <button class="icon" id="filterBtn" aria-label="Search and filters" title="Search &amp; filters" aria-expanded="false" aria-controls="filterPanel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="22 3 2 3 10 12.5 10 19 14 21 14 12.5 22 3"/></svg>
+      </button>
+      <button class="icon" id="showBtn" aria-label="Slideshow" title="Slideshow">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="7 4 20 12 7 20 7 4"/></svg>
+      </button>
+      <button class="icon" id="shuffleBtn" aria-label="Jump to a random memory" title="Surprise me">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+      </button>
+      <button class="icon" id="settingsBtn" aria-label="Our dates and settings" title="Our dates &amp; settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      </button>
+      <button class="icon" id="signOutBtn" aria-label="Sign out" title="Sign out" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+      <button class="icon" id="moreBtn" aria-label="More actions" title="More" aria-expanded="false" aria-controls="moreMenu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+      </button>
+      <button class="btn" id="addBtn" aria-label="Add memory">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="lbl">Add memory</span>
+      </button>
+    </div>
+  </div>
+  <div id="filterPanel" hidden>
+  <div class="toolbar">
+    <div class="searchbox">
+      <span class="field-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="search" id="q" placeholder="Search descriptions, places, tags…" aria-label="Search">
+    </div>
+    <label class="pill" title="Sort order">
+      <span aria-hidden="true">↕</span>
+      <select id="order" aria-label="Sort order"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
+    </label>
+    <button class="pill" id="datesBtn" aria-expanded="false" aria-controls="dateRange">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Dates
+    </button>
+    <label class="pill"><input type="checkbox" id="favOnly"> ♥ Favorites</label>
+    <button class="pill" id="clearBtn">Clear</button>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="toolbar" id="dateRange" hidden>
+    <div class="daterange">
+      <label>From <input type="date" id="from"></label>
+      <label>To <input type="date" id="to"></label>
+    </div>
+  </div>
+  <div class="tagbar" id="tagBar"></div>
+  </div>
+</header>
+
+<div class="menu" id="moreMenu" role="menu" hidden>
+  <button role="menuitem" data-proxy="showBtn">▶&nbsp; Slideshow</button>
+  <button role="menuitem" data-proxy="shuffleBtn">🎲&nbsp; Surprise me</button>
+  <button role="menuitem" data-proxy="bookBtn">📖&nbsp; Photo book (PDF)</button>
+  <button role="menuitem" data-proxy="settingsBtn">⚙&nbsp; Settings</button>
+  <button role="menuitem" data-proxy="signOutBtn" id="moreSignOut" hidden>↪&nbsp; Sign out</button>
+</div>
+
+<div id="scroller">
+<main>
+  <div id="nextUp" class="otd" hidden></div>
+  <div id="otd"></div>
+  <div id="timeline" class="timeline"></div>
+  <div id="mapWrap" hidden>
+    <div id="map"></div>
+    <div id="mapEmpty" hidden><p>No memories have a place yet.<br>Add a place when you create or edit a memory.</p></div>
+  </div>
+  <div id="listsWrap" hidden>
+    <form id="newListForm" class="newlist">
+      <input id="newListTitle" type="text" maxlength="80" placeholder="New list, e.g. Places we want to go" aria-label="New list title">
+      <button class="btn" type="submit">Add list</button>
+    </form>
+    <div id="listSuggest" class="tags"></div>
+    <div id="lists" class="lists"></div>
+  </div>
+  <div id="empty" class="empty" hidden>
+    <div class="big" id="emptyTitle">No memories yet</div>
+    <p id="emptySub">Press “Add memory” to pin the first one.</p>
+  </div>
+</main>
+</div>
+
+<nav id="tabbar" aria-label="Views">
+  <button data-view="timeline" class="on">Timeline</button>
+  <button data-view="map">Map</button>
+  <button data-view="lists">Lists</button>
+</nav>
+
+<dialog id="memDialog">
+  <form class="memory" id="memForm" method="dialog">
+    <h2 id="dialogTitle">Add a memory</h2>
+    <div class="field">Photos, videos &amp; voice notes <span class="hint">(optional: leave empty for a text-only note)</span>
+      <div class="mediagrid" id="mediaGrid"></div>
+      <div class="row" style="justify-content:flex-start">
+        <button type="button" class="btn ghost" id="addMediaBtn">+ Add photos / videos</button>
+        <button type="button" class="btn ghost" id="recBtn">🎙 Record voice note</button>
+      </div>
+      <input type="file" id="file" accept="image/*,video/*,audio/*" multiple hidden>
+    </div>
+    <label class="field">Date
+      <input type="date" id="date" required>
+    </label>
+    <div class="occasion-hint" id="occasionHint" hidden></div>
+    <div class="suggest" id="dateSuggest" hidden>
+      <span id="dateSuggestText"></span><button type="button" id="dateSuggestBtn">Use this date</button>
+    </div>
+    <label class="field">Description
+      <textarea id="text" placeholder="What happened? How did it feel?"></textarea>
+    </label>
+    <label class="field">Place <span class="hint">(optional, adds a pin on the map)</span>
+      <input type="text" id="place" placeholder="e.g. Brighton Beach, UK">
+    </label>
+    <div class="hint" id="placeAuto" hidden></div>
+    <div class="suggest" id="gpsSuggest" hidden>
+      <span>📍 This photo has a location.</span><button type="button" id="gpsSuggestBtn">Use location</button>
+    </div>
+    <label class="field">Tags <span class="hint">(comma separated)</span>
+      <input type="text" id="tags" placeholder="trip, birthday, inside joke" list="tagList">
+      <datalist id="tagList"></datalist>
+    </label>
+    <div class="field">Sticker
+      <div class="stickers" id="stickers"></div>
+    </div>
+    <div class="field">Song <span class="hint">(optional: search to add a 30-second preview, and/or paste a YouTube or Spotify link for the full song)</span>
+      <div id="songPick"></div>
+      <div class="songsearch">
+        <input type="text" id="songQ" placeholder="Search a song or artist…" autocomplete="off">
+        <button type="button" class="btn ghost" id="songGo">Search</button>
+      </div>
+      <div id="songResults" class="songresults"></div>
+      <input type="url" id="songUrl" placeholder="https://www.youtube.com/watch?v=… or open.spotify.com/track/…">
+    </div>
+    <label class="check"><input type="checkbox" id="capsule"> 🔒 Seal as a time capsule <span class="hint">(hidden until a date you choose)</span></label>
+    <label class="field" id="unlockField" hidden>Opens on <input type="date" id="unlockDate"></label>
+    <div class="row">
+      <button type="button" class="btn ghost" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn" id="saveBtn">Save memory</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settingsDialog">
+  <form class="memory" id="settingsForm" method="dialog">
+    <h2>Settings</h2>
+    <fieldset class="group">
+      <legend>Our dates</legend>
+      <label class="field">The day we met <input type="date" id="metDate"></label>
+      <label class="field">The day we started dating <input type="date" id="startDate"></label>
+    </fieldset>
+    <fieldset class="group">
+      <legend>Birthdays &amp; special days</legend>
+      <p class="hint" style="margin:0">Memories on these days get a big knot on the string. Valentine’s Day (14 Feb) is always included, and so are the two dates above.</p>
+      <div id="specialRows"></div>
+      <button type="button" class="btn ghost" id="addSpecial">+ Add a date</button>
+    </fieldset>
+    <label class="field">I am… <span class="hint">(shown on your posts and comments, remembered on this device)</span>
+      <select id="authorName">
+        <option value="">Choose…</option><option value="Rashmika">Rashmika (R)</option><option value="Darren">Darren (D)</option>
+      </select>
+    </label>
+    <div class="field">Backup <span class="hint">(a .zip with every memory, comment, list and photo, to keep somewhere safe)</span>
+      <button type="button" class="btn ghost" id="backupBtn">Download a full backup</button>
+    </div>
+    <div class="field">Notifications <span class="hint">(a pop-up when the other person adds something while this tab is open in the background)</span>
+      <button type="button" class="btn ghost" id="notifBtn">Enable browser notifications</button>
+    </div>
+    <label class="field">Theme
+      <select id="themeSel">
+        <option value="paper">Paper</option><option value="blush">Blush</option>
+        <option value="sage">Sage</option><option value="midnight">Midnight</option>
+      </select>
+    </label>
+    <div class="row">
+      <button type="button" class="btn ghost" id="settingsCancel">Cancel</button>
+      <button type="submit" class="btn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="askDialog">
+  <form class="memory" id="askForm" method="dialog">
+    <h2 id="askTitle"></h2>
+    <label class="field" id="askField"><span id="askLabel"></span>
+      <input type="text" id="askInput" maxlength="40">
+    </label>
+    <div class="row">
+      <button type="button" class="btn ghost" id="askCancel">Cancel</button>
+      <button type="submit" class="btn" id="askOk">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="lightbox" class="lightbox"><img alt=""></dialog>
+
+<div id="show" hidden>
+  <div id="showStage"></div>
+  <div id="showCap"></div>
+  <div id="showBar">
+    <button id="showPrev" aria-label="Previous">‹</button>
+    <button id="showPlay" aria-label="Play or pause">⏸</button>
+    <button id="showNext" aria-label="Next">›</button>
+    <span id="showPos" style="opacity:.7"></span>
+    <button id="showClose">Close</button>
+  </div>
+</div>
+
+<dialog id="whoDialog">
+  <form class="memory" method="dialog" onsubmit="return false">
+    <h2>Who’s this?</h2>
+    <div class="whorow">
+      <button type="button" class="whobtn" data-who="Rashmika" aria-label="R"><span class="ini">R</span></button>
+      <button type="button" class="whobtn" data-who="Darren" aria-label="D"><span class="ini">D</span></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="loginDialog">
+  <form class="memory" id="loginForm" method="dialog">
+    <h2>Sign in</h2>
+    <div class="who" role="group" aria-label="Who is this?">
+      <div class="whotitle">Who’s this?</div>
+      <div class="whorow">
+        <button type="button" class="whobtn" data-who="Rashmika" aria-label="R"><span class="ini">R</span></button>
+        <button type="button" class="whobtn" data-who="Darren" aria-label="D"><span class="ini">D</span></button>
+      </div>
+    </div>
+    <label class="field" id="emailField">Email
+      <input type="email" id="email" name="username" autocomplete="username" required>
+    </label>
+    <label class="field">Password
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+    </label>
+    <div id="loginErr" style="color:var(--accent);font-size:.9rem" role="alert"></div>
+    <div class="row"><button type="submit" class="btn">Sign in</button></div>
+  </form>
+</dialog>
+
+<div id="book" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="config.js"></script>
+<script src="config.dev.js" onerror="void 0"></script>
+<script>
+  // Safety: when this page is opened from this computer (localhost / a file), it must NEVER talk to the
+  // live database. It runs on browser-only test data unless config.dev.js names a separate test project.
+  (function () {
+    var h = location.hostname;
+    var here = h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || /\.localhost$/.test(h) || location.protocol === 'file:';
+    if (!here) return;
+    var dev = window.SCRAPBOOK_DEV_CONFIG;
+    window.SCRAPBOOK_TEST_MODE = dev ? (dev.live ? 'live' : 'dev') : 'local';
+    window.SCRAPBOOK_CONFIG = window.SCRAPBOOK_DEV_CONFIG || {};
+  })();
+</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const STICKERS = ['❤️', '✈️', '🎂', '⭐', '🌸', '🎉', '🍕', '🏖️'];
+  const MAX_FILE = 50 * 1024 * 1024; // Supabase free-plan per-file limit
+
+  let memories = [];
+  let settings = {};
+  let view = 'timeline';
+  const activeTags = new Set();
+
+  /* ---------- tiny helpers ---------- */
+  const h = (tag, props = {}, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (v === true) e.setAttribute(k, '');
+      else e.setAttribute(k, v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) e.append(kid);
+    return e;
+  };
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+  const toast = msg => {
+    const t = h('div', { class: 'toast', text: msg });
+    document.body.appendChild(t); setTimeout(() => t.remove(), 3200);
+  };
+  // In-page replacements for confirm()/prompt() (native popups are blocked in some browsers).
+  function ask({ title, label = null, okText = 'OK', danger = false }) {
+    return new Promise(resolve => {
+      const d = $('askDialog');
+      $('askTitle').textContent = title;
+      $('askField').hidden = !label;
+      $('askLabel').textContent = label || '';
+      $('askInput').value = '';
+      $('askInput').required = !!label;
+      $('askOk').textContent = okText;
+      let result = null;
+      const done = v => { result = v; d.close(); };
+      $('askForm').onsubmit = e => { e.preventDefault(); done(label ? $('askInput').value.trim() : true); };
+      $('askCancel').onclick = () => done(null);
+      d.addEventListener('close', () => resolve(result), { once: true });
+      d.showModal();
+      if (label) $('askInput').focus();
+    });
+  }
+  const parseDate = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const fmt = s => parseDate(s).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const monthLabel = s => parseDate(s).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const tilt = id => { let x = 0; for (const c of id) x = (x * 31 + c.charCodeAt(0)) | 0; return ((Math.abs(x) % 50) - 25) / 10; };
+  const extFor = b => ({ 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/wav': 'wav' }[(b.type || '').split(';')[0]] || 'bin');
+  const kindOf = f => f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : f.type.startsWith('image/') ? 'image' : null;
+
+  function shrink(file, max = 1600) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(b => b ? res(b) : rej(new Error('Could not process image')), 'image/jpeg', 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Could not read that image')); };
+      img.src = url;
+    });
+  }
+
+  /* ---------- backends ---------- */
+  const CFG = window.SCRAPBOOK_CONFIG || {};
+  const cloudMode = !!(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
+  const BUCKET = 'photos';
+
+  // Local mode: IndexedDB in this browser only (used when config.js is empty).
+  const local = (() => {
+    const dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('scrapbook', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('memories', { keyPath: 'id' });
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const tx = async (mode, fn) => {
+      const db = await dbp;
+      return new Promise((res, rej) => {
+        const t = db.transaction('memories', mode);
+        const out = fn(t.objectStore('memories'));
+        t.oncomplete = () => res(out && out.result);
+        t.onerror = () => rej(t.error);
+      });
+    };
+    const strip = m => ({ ...m, media: m.media.map(i => ({ type: i.type, blob: i.blob })) });
+    const persist = m => tx('readwrite', s => s.put(strip(m)));
+    return {
+      async loadAll() {
+        const rows = await tx('readonly', s => s.getAll());
+        for (const m of rows) {
+          if (!m.media) {
+            m.media = [];
+            if (m.img) { try { m.media = [{ type: 'image', blob: await (await fetch(m.img)).blob() }]; } catch {} }
+          }
+          m.media.forEach(i => { i.url = URL.createObjectURL(i.blob); });
+          m.tags = m.tags || []; m.comments = m.comments || []; m.reactions = m.reactions || [];
+          m.unlock = m.unlock || null; m.song = m.song || null;
+        }
+        return rows;
+      },
+      async save(m) { await persist(m); return m; },
+      async remove(m) { await tx('readwrite', s => s.delete(m.id)); },
+      async setFavorite(m) { await persist(m); },
+      async addComment(m, author, body) {
+        const c = { id: crypto.randomUUID(), author, body, created: Date.now() };
+        m.comments.push(c); await persist(m); return c;
+      },
+      async removeComment(m, c) { m.comments = m.comments.filter(x => x.id !== c.id); await persist(m); },
+      async addReaction(m, author, emoji) {
+        const r = { id: crypto.randomUUID(), author, emoji };
+        m.reactions.push(r); await persist(m); return r;
+      },
+      async removeReaction(m, r) { m.reactions = m.reactions.filter(x => x.id !== r.id); await persist(m); },
+      // lists (kept in localStorage in local mode)
+      _lists() { try { return JSON.parse(store.get('scrapbook-lists') || '[]'); } catch { return []; } },
+      _saveLists(l) { store.set('scrapbook-lists', JSON.stringify(l)); },
+      async loadLists() { return this._lists(); },
+      async createList(title) { const all = this._lists(), l = { id: crypto.randomUUID(), title, items: [] }; all.push(l); this._saveLists(all); return l; },
+      async deleteList(l) { this._saveLists(this._lists().filter(x => x.id !== l.id)); },
+      async addItem(l, text, author) {
+        const all = this._lists(), it = { id: crypto.randomUUID(), text, done: false, author, created: Date.now() };
+        all.find(x => x.id === l.id).items.push(it); this._saveLists(all); return it;
+      },
+      async setItemDone(l, it) { const all = this._lists(); all.find(x => x.id === l.id).items.find(x => x.id === it.id).done = it.done; this._saveLists(all); },
+      async deleteItem(l, it) { const all = this._lists(), x = all.find(y => y.id === l.id); x.items = x.items.filter(i => i.id !== it.id); this._saveLists(all); },
+      subscribe() {}, unsubscribe() {},
+      async getSettings() { try { return JSON.parse(store.get('scrapbook-settings') || '{}'); } catch { return {}; } },
+      async setSetting(k, v) { const s = await this.getSettings(); s[k] = v; store.set('scrapbook-settings', JSON.stringify(s)); },
+    };
+  })();
+
+  // Cloud mode: Supabase tables + private storage bucket.
+  // The password is asked for once per device. After that the device stays signed in via Supabase's own
+  // session token (refreshed automatically), so the password itself is never stored by the site.
+  const sb = cloudMode ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  }) : null;
+  const mediaOf = r => Array.isArray(r.media) && r.media.length ? r.media : (r.image_path ? [{ type: 'image', path: r.image_path }] : []);
+  const cloud = {
+    async loadAll() {
+      const [mq, cq, rq] = await Promise.all([sb.from('memories').select('*'), sb.from('comments').select('*'), sb.from('reactions').select('*')]);
+      if (mq.error) throw mq.error;
+      if (cq.error && cq.error.code !== 'PGRST205') throw cq.error; // table missing before migration 2
+      if (rq.error && rq.error.code !== 'PGRST205') throw rq.error; // table missing before migration 3
+      const rxByMem = {};
+      (rq.data || []).forEach(r => (rxByMem[r.memory_id] = rxByMem[r.memory_id] || []).push({ id: r.id, author: r.author, emoji: r.emoji }));
+      const byMem = {};
+      (cq.data || []).forEach(c => (byMem[c.memory_id] = byMem[c.memory_id] || []).push({ id: c.id, author: c.author, body: c.body, created: Date.parse(c.created_at) }));
+      const paths = [...new Set(mq.data.flatMap(r => mediaOf(r).map(x => x.path)))];
+      const urls = {};
+      if (paths.length) {
+        const { data: signed, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, 6 * 3600);
+        if (error) throw error;
+        signed.forEach(s => { urls[s.path] = s.signedUrl; });
+      }
+      return mq.data.map(r => ({
+        id: r.id, date: r.date, text: r.text, created: Date.parse(r.created_at),
+        media: mediaOf(r).map(x => ({ type: x.type, path: x.path, url: urls[x.path] || null })),
+        tags: r.tags || [], favorite: !!r.favorite, sticker: r.sticker || null,
+        place: r.place || '', lat: r.lat, lng: r.lng, comments: byMem[r.id] || [],
+        unlock: r.unlock_date || null, song: r.song || null, reactions: rxByMem[r.id] || [],
+        author: r.author || null,
+      }));
+    },
+    async save(m, removed = []) {
+      const media = [];
+      for (const it of m.media) {
+        if (!it.path) {
+          const path = `${crypto.randomUUID()}.${extFor(it.blob)}`;
+          const { error } = await sb.storage.from(BUCKET).upload(path, it.blob, { contentType: it.blob.type || undefined });
+          if (error) throw error;
+          it.path = path; // so a retry doesn't upload twice
+        }
+        media.push({ type: it.type, path: it.path });
+      }
+      const row = {
+        id: m.id, date: m.date, text: m.text, media, tags: m.tags, favorite: m.favorite,
+        sticker: m.sticker, place: m.place || null, lat: m.lat, lng: m.lng,
+        unlock_date: m.unlock || null, song: m.song || null,
+      };
+      let { error } = await sb.from('memories').upsert({ ...row, author: m.author || null });
+      // before migration 5 the "author" column doesn't exist yet: save without it rather than fail
+      if (error && (error.code === 'PGRST204' || /author/i.test(error.message || ''))) {
+        ({ error } = await sb.from('memories').upsert(row));
+      }
+      if (error) throw error;
+      // Safety: files in storage are never deleted by the site, even when a photo is removed from a
+      // memory or a memory is deleted. A bug can then never destroy photos; leftovers cost almost nothing.
+      return m;
+    },
+    async remove(m) {
+      const { error } = await sb.from('memories').delete().eq('id', m.id);
+      if (error) throw error;
+    },
+    async setFavorite(m) {
+      const { error } = await sb.from('memories').update({ favorite: m.favorite }).eq('id', m.id);
+      if (error) throw error;
+    },
+    async addComment(m, author, body) {
+      const { data, error } = await sb.from('comments').insert({ memory_id: m.id, author, body }).select().single();
+      if (error) throw error;
+      return { id: data.id, author: data.author, body: data.body, created: Date.parse(data.created_at) };
+    },
+    async removeComment(m, c) {
+      const { error } = await sb.from('comments').delete().eq('id', c.id);
+      if (error) throw error;
+    },
+    async addReaction(m, author, emoji) {
+      const { data, error } = await sb.from('reactions').insert({ memory_id: m.id, author, emoji }).select().single();
+      if (error) throw error;
+      return { id: data.id, author: data.author, emoji: data.emoji };
+    },
+    async removeReaction(m, r) {
+      const { error } = await sb.from('reactions').delete().eq('id', r.id);
+      if (error) throw error;
+    },
+    async loadLists() {
+      const [l, i] = await Promise.all([sb.from('lists').select('*'), sb.from('list_items').select('*')]);
+      if (l.error) { if (l.error.code === 'PGRST205') return []; throw l.error; }
+      if (i.error) throw i.error;
+      return l.data.map(x => ({
+        id: x.id, title: x.title, created: Date.parse(x.created_at),
+        items: i.data.filter(it => it.list_id === x.id).map(it => ({ id: it.id, text: it.text, done: it.done, author: it.author, created: Date.parse(it.created_at) })),
+      }));
+    },
+    async createList(title) {
+      const { data, error } = await sb.from('lists').insert({ title }).select().single();
+      if (error) throw error;
+      return { id: data.id, title: data.title, created: Date.parse(data.created_at), items: [] };
+    },
+    async deleteList(l) {
+      const { error } = await sb.from('lists').delete().eq('id', l.id);
+      if (error) throw error;
+    },
+    async addItem(l, text, author) {
+      const { data, error } = await sb.from('list_items').insert({ list_id: l.id, text, author }).select().single();
+      if (error) throw error;
+      return { id: data.id, text: data.text, done: data.done, author: data.author, created: Date.parse(data.created_at) };
+    },
+    async setItemDone(l, it) {
+      const { error } = await sb.from('list_items').update({ done: it.done }).eq('id', it.id);
+      if (error) throw error;
+    },
+    async deleteItem(l, it) {
+      const { error } = await sb.from('list_items').delete().eq('id', it.id);
+      if (error) throw error;
+    },
+    subscribe(cb) {
+      const ch = sb.channel('scrapbook');
+      ['memories', 'comments', 'reactions', 'lists', 'list_items'].forEach(table =>
+        ch.on('postgres_changes', { event: '*', schema: 'public', table }, p => cb(table, p)));
+      ch.subscribe();
+    },
+    unsubscribe() { sb.removeAllChannels(); },
+    async getSettings() {
+      const { data, error } = await sb.from('settings').select('*');
+      if (error) { console.warn(error); return {}; }
+      return Object.fromEntries(data.map(r => [r.key, r.value]));
+    },
+    async setSetting(k, v) {
+      const { error } = await sb.from('settings').upsert({ key: k, value: v || null });
+      if (error) throw error;
+    },
+  };
+  const backend = cloudMode ? cloud : local;
+
+  /* ---------- theme & author ---------- */
+  const applyTheme = t => { document.documentElement.dataset.theme = t; store.set('scrapbook-theme', t); };
+  applyTheme(store.get('scrapbook-theme') || 'paper');
+  const getAuthor = () => store.get('scrapbook-author') || '';
+
+  /* ---------- derived data ---------- */
+  let lists = [];
+  const isLocked = m => !!m.unlock && m.unlock > todayISO();
+  // ids of things I just created, so I don't get a notification about my own changes
+  const mine = new Set();
+  const noteMine = id => { mine.add(id); setTimeout(() => mine.delete(id), 20000); };
+  async function needAuthor(title) {
+    let a = getAuthor();
+    if (a) return a;
+    a = await ask({ title, label: 'Your name', okText: 'Save' });
+    if (a) store.set('scrapbook-author', a);
+    return a;
+  }
+  function visible() {
+    const q = $('q').value.trim().toLowerCase();
+    const from = $('from').value, to = $('to').value, favOnly = $('favOnly').checked;
+    const dir = $('order').value === 'asc' ? 1 : -1;
+    return memories
+      .filter(m => {
+        if (favOnly && !m.favorite) return false;
+        if (from && m.date < from) return false;
+        if (to && m.date > to) return false;
+        if ((q || activeTags.size) && isLocked(m)) return false; // sealed contents can't be searched
+        for (const t of activeTags) if (!m.tags.includes(t)) return false;
+        if (q && ![m.text, m.place, m.tags.join(' ')].join(' ').toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort((a, b) => a.date === b.date ? (a.created - b.created) * dir : (a.date < b.date ? -1 : 1) * dir);
+  }
+
+  /* ---------- special days ---------- */
+  const KIND_EMOJI = { birthday: '🎂', anniversary: '💍', other: '⭐' };
+  const ordinal = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  function specialList() {
+    try { const a = JSON.parse(settings.special_dates || '[]'); return Array.isArray(a) ? a : []; } catch { return []; }
+  }
+  // Returns the special occasions a date falls on (any year), most important first.
+  function specialFor(iso) {
+    const md = iso.slice(5), y = +iso.slice(0, 4), hits = [];
+    const add = (rank, emoji, label) => hits.push({ rank, emoji, label });
+    const base = (d, first, again) => {
+      if (!d || d.slice(5) !== md) return;
+      const n = y - +d.slice(0, 4);
+      if (n === 0) add(0, '💞', first); else if (n > 0) add(0, '💞', again(n));
+    };
+    base(settings.start_date, 'The day we got together', n => `${ordinal(n)} anniversary of us`);
+    if (settings.met_date && settings.met_date.slice(5) === md) {
+      const n = y - +settings.met_date.slice(0, 4);
+      if (n === 0) add(0, '✨', 'The day we met'); else if (n > 0) add(0, '✨', `${n} year${n === 1 ? '' : 's'} since we met`);
+    }
+    for (const s of specialList()) {
+      if (!s.date || s.date.slice(5) !== md || +s.date.slice(0, 4) > y) continue;
+      add(s.kind === 'anniversary' ? 0 : s.kind === 'birthday' ? 1 : 2, KIND_EMOJI[s.kind] || '⭐', s.label || 'Special day');
+    }
+    if (md === '02-14') add(3, '💘', 'Valentine’s Day');
+    return hits.sort((a, b) => a.rank - b.rank);
+  }
+
+  /* ---------- stats & on-this-day ---------- */
+  const daysBetween = (iso) => Math.round((parseDate(todayISO()) - parseDate(iso)) / 864e5);
+  function ymd(iso) {
+    const a = parseDate(iso), b = parseDate(todayISO());
+    let y = b.getFullYear() - a.getFullYear(), m = b.getMonth() - a.getMonth();
+    if (b.getDate() < a.getDate()) m--;
+    if (m < 0) { y--; m += 12; }
+    return [y, m];
+  }
+  function renderStats() {
+    const el = $('stats'); el.replaceChildren();
+    const parts = [];
+    if (settings.start_date) {
+      const d = daysBetween(settings.start_date), [y, m] = ymd(settings.start_date);
+      const long = y || m ? ` (${y ? y + 'y ' : ''}${m ? m + 'm' : ''})`.replace(' )', ')') : '';
+      parts.push(`💞 ${d.toLocaleString()} day${d === 1 ? '' : 's'} together${long}`);
+    }
+    if (settings.met_date) {
+      const d = daysBetween(settings.met_date);
+      parts.push(`met ${d.toLocaleString()} day${d === 1 ? '' : 's'} ago`);
+    }
+    if (parts.length) {
+      el.append(parts[0]);
+      if (parts[1]) el.append(h('span', { class: parts.length > 1 && settings.start_date ? 'hide-sm' : '', text: ' · ' + parts[1] }));
+    } else el.append(h('button', { text: 'Set our dates', onclick: openSettings }));
+    const nx = nextOccasion();
+    if (nx) {
+      const when = nx.days === 0 ? 'today! 🎉' : nx.days === 1 ? 'tomorrow' : `in ${nx.days} days`;
+      el.append(h('div', { class: 'next', text: `${nx.emoji} ${nx.label} ${when}` }));
+      $('nextUp').textContent = `${nx.emoji} ${nx.label} ${when}`;
+    }
+    $('nextUp').hidden = !nx || view !== 'timeline';
+  }
+  // The nearest upcoming anniversary, birthday, or Valentine's Day.
+  function nextOccasion() {
+    const today = parseDate(todayISO()), cands = [];
+    const add = (iso, emoji, label) => {
+      if (!iso) return;
+      const [by, mo, da] = iso.split('-').map(Number);
+      let dt = new Date(today.getFullYear(), mo - 1, da);
+      if (dt < today) dt = new Date(today.getFullYear() + 1, mo - 1, da);
+      cands.push({ emoji, label: label(dt.getFullYear() - by), days: Math.round((dt - today) / 864e5) });
+    };
+    add(settings.start_date, '💞', n => n > 0 ? `${ordinal(n)} anniversary` : 'Our anniversary');
+    add(settings.met_date, '✨', n => n > 0 ? `${n} year${n === 1 ? '' : 's'} since we met` : 'The day we met');
+    specialList().forEach(s => add(s.date, KIND_EMOJI[s.kind] || '⭐', () => s.label || 'Special day'));
+    add('2000-02-14', '💘', () => 'Valentine’s Day');
+    cands.sort((a, b) => a.days - b.days);
+    return cands[0] || null;
+  }
+  function renderOnThisDay() {
+    const box = $('otd'); box.replaceChildren();
+    const t = todayISO(), md = t.slice(5), yr = +t.slice(0, 4);
+    const hits = memories.filter(m => !isLocked(m) && m.date.slice(5) === md && +m.date.slice(0, 4) < yr);
+    if (!hits.length || view !== 'timeline') return;
+    box.append(h('div', { class: 'otd' }, '📅 On this day: ', hits.map((m, i) => {
+      const n = yr - +m.date.slice(0, 4);
+      return [i ? ' · ' : '', h('button', { text: `${n} year${n === 1 ? '' : 's'} ago`, onclick: () => jumpTo(m.id) }),
+        m.text ? ` “${m.text.slice(0, 60)}${m.text.length > 60 ? '…' : ''}”` : ''];
+    })));
+  }
+  function jumpTo(id) {
+    $('q').value = ''; $('from').value = ''; $('to').value = ''; $('favOnly').checked = false; activeTags.clear();
+    setView('timeline'); render();
+    const el = document.querySelector(`.entry[data-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2000);
+  }
+
+  /* ---------- tag bar ---------- */
+  function renderTagBar() {
+    const all = [...new Set(memories.filter(m => !isLocked(m)).flatMap(m => m.tags))].sort();
+    for (const t of [...activeTags]) if (!all.includes(t)) activeTags.delete(t);
+    $('tagBar').replaceChildren(...all.map(t => h('button', {
+      class: 'chip' + (activeTags.has(t) ? ' on' : ''), text: '#' + t,
+      onclick: () => { activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); render(); },
+    })));
+    $('tagList').replaceChildren(...all.map(t => h('option', { value: t })));
+  }
+
+  /* ---------- cards ---------- */
+  function buildCarousel(m) {
+    const vis = m.media.filter(x => x.type !== 'audio' && x.url);
+    if (!vis.length) return null;
+    const n = vis.length;
+    let idx = 0, busy = false;
+    const slides = vis.map(it => h('div', { class: 'slide' },
+      it.type === 'video'
+        ? h('video', { src: it.url, controls: true, playsinline: true, preload: 'metadata' })
+        : h('img', { src: it.url, alt: m.text.slice(0, 80) || 'Memory photo', loading: 'lazy', onclick: () => openLightbox(it.url) })));
+    const counter = h('span', { class: 'counter' });
+    const layout = () => {
+      slides.forEach((s, k) => s.dataset.p = Math.min((k - idx + n) % n, 3));
+      counter.textContent = `${idx + 1} / ${n}`;
+    };
+    const quiet = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pause = s => { const v = s.querySelector('video'); if (v) v.pause(); };
+    const next = () => {
+      if (busy || n < 2) return;
+      busy = true;
+      const top = slides[idx];
+      pause(top);
+      top.classList.add('leave');                       // 1. top photo slides off to the side
+      setTimeout(() => {
+        idx = (idx + 1) % n;
+        top.classList.remove('leave');                  // 2. it drops to the back of the stack
+        layout();
+        setTimeout(() => { busy = false; }, quiet() ? 0 : 380);
+      }, quiet() ? 0 : 240);
+    };
+    const prev = () => {
+      if (busy || n < 2) return;
+      busy = true;
+      pause(slides[idx]);
+      idx = (idx - 1 + n) % n;
+      const back = slides[idx];                         // bring the back photo to the front
+      back.classList.add('notrans', 'leave');
+      layout();
+      void back.offsetWidth;
+      back.classList.remove('notrans');
+      back.classList.remove('leave');                   // ...sliding in from the side
+      setTimeout(() => { busy = false; }, quiet() ? 0 : 380);
+    };
+    const wrap = h('div', { class: 'carousel' }, h('div', { class: 'stack' }, slides));
+    if (n > 1) {
+      wrap.append(
+        h('button', { class: 'nav prev', 'aria-label': 'Previous photo', text: '‹', onclick: prev }),
+        h('button', { class: 'nav next', 'aria-label': 'Next photo', text: '›', onclick: next }),
+        counter);
+      let x0 = null;
+      wrap.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+      wrap.addEventListener('touchend', e => {
+        if (x0 == null) return;
+        const dx = e.changedTouches[0].clientX - x0; x0 = null;
+        if (Math.abs(dx) > 40) (dx < 0 ? next : prev)();
+      });
+    }
+    layout();
+    return wrap;
+  }
+
+  function buildComments(m) {
+    const list = h('div', { class: 'clist' });
+    const draw = () => list.replaceChildren(...[...m.comments].sort((a, b) => a.created - b.created).map(c =>
+      h('div', { class: 'comment' }, h('b', { text: c.author }), h('span', { text: c.body }),
+        h('button', {
+          class: 'cdel', title: 'Delete comment', 'aria-label': 'Delete comment', text: '×',
+          onclick: async () => {
+            if (!await ask({ title: 'Delete this comment?', okText: 'Delete' })) return;
+            try { await backend.removeComment(m, c); } catch (e) { toast('Could not delete: ' + e.message); return; }
+            m.comments = m.comments.filter(x => x.id !== c.id); draw();
+          },
+        }))));
+    const input = h('input', { type: 'text', placeholder: 'Add a comment…', maxlength: '500', 'aria-label': 'Add a comment' });
+    const form = h('form', {
+      class: 'cform',
+      onsubmit: async e => {
+        e.preventDefault();
+        const body = input.value.trim();
+        if (!body) return;
+        let author = getAuthor();
+        if (!author) {
+          author = await ask({ title: 'Who’s commenting?', label: 'Your name', okText: 'Save' });
+          if (!author) return;
+          store.set('scrapbook-author', author);
+        }
+        try { const c = await backend.addComment(m, author, body); noteMine(c.id); if (!m.comments.includes(c)) m.comments.push(c); }
+        catch (err) { toast('Could not comment: ' + err.message); return; }
+        input.value = ''; draw();
+      },
+    }, input, h('button', { type: 'submit', text: 'Send' }));
+    draw();
+    return h('div', { class: 'comments' }, list, form);
+  }
+
+  /* songs: 30-second preview via <audio>, full song via a YouTube/Spotify embed */
+  let currentAudio = null;
+  const stopCardAudio = () => { if (currentAudio) { currentAudio.pause(); currentAudio = null; } };
+  function parseEmbed(u) {
+    if (!u) return null;
+    let x;
+    if ((x = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/))([\w-]{11})/)))
+      return { src: `https://www.youtube-nocookie.com/embed/${x[1]}`, height: 230 };
+    if ((x = u.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|episode)\/(\w+)/)))
+      return { src: `https://open.spotify.com/embed/${x[1]}/${x[2]}`, height: x[1] === 'track' ? 152 : 352 };
+    return null;
+  }
+  function buildSong(m) {
+    const s = m.song;
+    if (!s) return null;
+    const embed = parseEmbed(s.url);
+    const wrap = h('div', { class: 'song' });
+    wrap.append(
+      s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : h('span', { class: 'songart', text: '🎵' }),
+      h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Our song' }), s.artist ? h('small', { text: s.artist }) : null));
+    if (s.preview) {
+      const btn = h('button', { class: 'songplay', 'aria-label': 'Play 30-second preview', title: '30-second preview', text: '▶' });
+      let audio = null;
+      btn.onclick = () => {
+        if (!audio) {
+          audio = new Audio(s.preview);
+          audio.addEventListener('play', () => { btn.textContent = '⏸'; });
+          audio.addEventListener('pause', () => { btn.textContent = '▶'; });
+          audio.addEventListener('ended', () => { btn.textContent = '▶'; });
+        }
+        if (audio.paused) {
+          if (currentAudio && currentAudio !== audio) currentAudio.pause();
+          currentAudio = audio;
+          audio.play().catch(() => toast('Could not play the preview'));
+        } else audio.pause();
+      };
+      wrap.append(btn);
+    }
+    if (embed) {
+      const full = h('button', { class: 'songlink', text: 'Play full song' });
+      full.onclick = () => {
+        stopCardAudio();
+        full.replaceWith(h('span', { class: 'hint', text: 'Playing below ↓' }));
+        wrap.append(h('iframe', { class: 'songembed', src: embed.src, height: String(embed.height), loading: 'lazy', title: 'Song player',
+          allow: 'autoplay; encrypted-media; clipboard-write; fullscreen', referrerpolicy: 'strict-origin-when-cross-origin' }));
+      };
+      wrap.append(full);
+    } else if (s.url || s.link) {
+      wrap.append(h('a', { class: 'songlink', href: s.url || s.link, target: '_blank', rel: 'noopener noreferrer', text: 'Full song ↗' }));
+    }
+    return wrap;
+  }
+
+  const REACTIONS = ['❤️', '😂', '🥹', '🔥', '👏'];
+  function buildReactions(m) {
+    const row = h('div', { class: 'reactions' });
+    const draw = () => row.replaceChildren(...REACTIONS.map(e => {
+      const who = m.reactions.filter(r => r.emoji === e);
+      const me = getAuthor();
+      const on = !!me && who.some(r => r.author === me);
+      return h('button', {
+        class: 'react' + (on ? ' on' : ''), 'aria-pressed': String(on), title: who.length ? who.map(r => r.author).join(', ') : 'React',
+        onclick: async () => {
+          const author = await needAuthor('Who’s reacting?');
+          if (!author) return;
+          try {
+            const cur = m.reactions.find(r => r.emoji === e && r.author === author);
+            if (cur) { await backend.removeReaction(m, cur); m.reactions = m.reactions.filter(r => r.id !== cur.id); }
+            else { const r = await backend.addReaction(m, author, e); noteMine(r.id); if (!m.reactions.includes(r)) m.reactions.push(r); }
+          } catch (err) { toast('Could not react: ' + err.message); return; }
+          draw();
+        },
+      }, e, who.length ? h('span', { class: 'rn', text: String(who.length) }) : null);
+    }));
+    draw();
+    return row;
+  }
+
+  function buildCapsule(m, right) {
+    const days = -daysBetween(m.unlock);
+    const pol = h('div', { class: 'polaroid capsule', style: `--tilt:${tilt(m.id)}deg` },
+      h('div', { class: 'actions' },
+        h('button', {
+          class: 'edit', title: 'Peek inside / edit', 'aria-label': 'Peek inside or edit', text: '✎',
+          onclick: async () => { if (await ask({ title: 'Peek inside? It will show you what’s in the capsule.', okText: 'Open it' })) openDialog(m); },
+        }),
+        h('button', { class: 'del', title: 'Delete', 'aria-label': 'Delete memory', text: '🗑', onclick: () => removeMemory(m) })),
+      h('div', { class: 'seal', text: '💌', 'aria-hidden': 'true' }),
+      h('div', { class: 'date', text: 'A time capsule' }),
+      h('p', { class: 'text', text: `Sealed for ${days} more day${days === 1 ? '' : 's'}.` }),
+      h('div', { class: 'place', text: `Opens on ${fmt(m.unlock)}` }));
+    return h('article', { class: 'entry' + (right ? ' right' : ''), 'data-id': m.id }, pol);
+  }
+
+  function buildCard(m, right) {
+    if (isLocked(m)) return buildCapsule(m, right);
+    const fav = h('button', {
+      class: 'favbtn' + (m.favorite ? ' on' : ''), title: 'Favorite', 'aria-label': 'Favorite', 'aria-pressed': String(m.favorite),
+      text: m.favorite ? '♥' : '♡',
+      onclick: async e => {
+        m.favorite = !m.favorite;
+        e.currentTarget.textContent = m.favorite ? '♥' : '♡';
+        e.currentTarget.classList.toggle('on', m.favorite);
+        try { await backend.setFavorite(m); } catch (err) { toast('Could not save favorite'); }
+      },
+    });
+    const audios = m.media.filter(x => x.type === 'audio' && x.url);
+    const occasions = specialFor(m.date);
+    const hasVisual = m.media.some(x => x.type !== 'audio' && x.url);
+    const pol = h('div', { class: 'polaroid' + (hasVisual ? '' : ' note'), style: `--tilt:${tilt(m.id)}deg` },
+      m.sticker ? h('div', { class: 'sticker', text: m.sticker, 'aria-hidden': 'true' }) : null,
+      h('div', { class: 'actions' },
+        h('button', { class: 'edit', title: 'Edit', 'aria-label': 'Edit memory', text: '✎', onclick: () => openDialog(m) }),
+        h('button', { class: 'del', title: 'Delete', 'aria-label': 'Delete memory', text: '🗑', onclick: () => removeMemory(m) })),
+      fav,
+      buildCarousel(m),
+      h('div', { class: 'date', text: fmt(m.date) }),
+      m.author ? h('div', { class: 'by', text: 'Added by ' + m.author }) : null,
+      occasions.length ? h('div', { class: 'occasion', text: occasions.map(o => o.emoji + ' ' + o.label).join(' · ') }) : null,
+      m.unlock ? h('div', { class: 'occasion', text: '🔓 Time capsule opened ' + fmt(m.unlock) }) : null,
+      m.place ? h('div', { class: 'place', text: '📍 ' + m.place }) : null,
+      m.text ? h('p', { class: 'text', text: m.text }) : null,
+      audios.map(a => h('audio', { src: a.url, controls: true, preload: 'none' })),
+      m.tags.length ? h('div', { class: 'tags' }, m.tags.map(t => h('button', {
+        class: 'chip', text: '#' + t, onclick: () => { activeTags.add(t); setFilters(true); render(); $('scroller').scrollTo({ top: 0 }); },
+      }))) : null,
+      buildSong(m),
+      buildReactions(m),
+      buildComments(m));
+    return h('article', {
+      class: 'entry' + (right ? ' right' : '') + (occasions.length ? ' special' : ''),
+      'data-id': m.id, 'data-emoji': occasions.length ? occasions[0].emoji : null,
+    }, pol);
+  }
+
+  async function removeMemory(m) {
+    if (!await ask({ title: 'Delete this memory?', okText: 'Delete' })) return;
+    try { await backend.remove(m); } catch (err) { toast('Could not delete: ' + err.message); return; }
+    memories = memories.filter(x => x.id !== m.id); render();
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    renderTagBar(); renderStats(); renderOnThisDay();
+    if (view === 'lists') { renderLists(); return; }
+    const list = visible();
+    const filtered = $('q').value || $('from').value || $('to').value || $('favOnly').checked || activeTags.size;
+    $('count').textContent = memories.length ? `${list.length} of ${memories.length} memories` : '';
+    $('filterBtn').classList.toggle('on', !!filtered);
+    const dateOn = !!($('from').value || $('to').value);
+    $('datesBtn').classList.toggle('on', dateOn);
+    $('datesBtn').lastChild.textContent = dateOn ? ' Dates •' : ' Dates';
+    const tl = $('timeline'); tl.replaceChildren();
+    $('empty').hidden = list.length > 0;
+    if (!list.length) {
+      $('emptyTitle').textContent = memories.length && filtered ? 'Nothing matches' : 'No memories yet';
+      $('emptySub').textContent = memories.length && filtered ? 'Try a different search, tag, or date range.' : 'Press “Add memory” to pin the first one.';
+    }
+    if (view === 'map') { renderMap(list); return; }
+    let lastGroup = '', n = 0;
+    for (const m of list) {
+      const g = monthLabel(m.date);
+      if (g !== lastGroup) { tl.append(h('div', { class: 'group-title' }, h('span', { text: g }))); lastGroup = g; }
+      tl.append(buildCard(m, n++ % 2 === 1));
+    }
+    drawString();
+  }
+
+  /* ---------- wavy red string ---------- */
+  const WAVE = { amp: 9, len: 230, pad: 14 };
+  const waveX = y => WAVE.amp * Math.sin((2 * Math.PI * y) / WAVE.len);
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function drawString() {
+    const tl = $('timeline');
+    tl.querySelector('#string')?.remove();
+    if (tl.hidden) return;
+    const H = tl.offsetHeight;
+    if (H < 20 || !tl.querySelector('.entry')) return;
+    const mobile = matchMedia('(max-width: 720px)').matches;
+    const W = WAVE.amp * 2 + WAVE.pad * 2, cx = W / 2;
+    let d = '';
+    for (let y = 0; y <= H + 8; y += 6) d += (y ? 'L' : 'M') + (cx + waveX(y)).toFixed(1) + ' ' + y;
+    const svg = document.createElementNS(SVGNS, 'svg');
+    svg.id = 'string';
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    svg.setAttribute('aria-hidden', 'true');
+    svg.style.left = mobile ? `${14 - cx}px` : `calc(50% - ${cx}px)`;
+    const mk = (attrs) => { const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke-linecap', 'round'); for (const [k, v] of Object.entries(attrs)) p.setAttribute(k, v); return p; };
+    svg.append(
+      mk({ stroke: '#7d1510', 'stroke-width': 6 }),
+      mk({ stroke: '#cf3a2e', 'stroke-width': 4 }),
+      mk({ stroke: 'rgba(255,255,255,.3)', 'stroke-width': 4, 'stroke-dasharray': '2 6' }));
+    tl.prepend(svg);
+    // keep each knot tied onto the curve
+    tl.querySelectorAll('.entry').forEach(el => el.style.setProperty('--kx', waveX(el.offsetTop + 48).toFixed(1) + 'px'));
+  }
+  new ResizeObserver(() => drawString()).observe($('timeline'));
+
+  /* ---------- map ---------- */
+  let map, markers;
+  function renderMap(list) {
+    if (!window.L) { toast('Map library failed to load'); return; }
+    if (!map) {
+      map = L.map('map');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(map);
+      markers = L.layerGroup().addTo(map);
+    }
+    markers.clearLayers();
+    const pts = list.filter(m => !isLocked(m) && m.lat != null && m.lng != null);
+    pts.forEach(m => {
+      const first = m.media.find(x => x.type === 'image' && x.url);
+      const pop = h('div', { class: 'pop' },
+        first ? h('img', { src: first.url, alt: '' }) : null,
+        h('b', { text: fmt(m.date) }),
+        m.place ? h('div', { text: '📍 ' + m.place }) : null,
+        m.text ? h('div', { text: m.text.slice(0, 140) }) : null,
+        h('button', { class: 'chip', text: 'Open in timeline', onclick: () => jumpTo(m.id) }));
+      L.marker([m.lat, m.lng]).bindPopup(pop).addTo(markers);
+    });
+    $('mapEmpty').hidden = pts.length > 0;
+    map.invalidateSize();
+    if (pts.length) map.fitBounds(L.latLngBounds(pts.map(m => [m.lat, m.lng])).pad(0.3), { maxZoom: 13 });
+    else map.setView([20, 0], 2);
+  }
+  function setView(v) {
+    view = v;
+    $('viewTimeline').classList.toggle('on', v === 'timeline');
+    $('viewMap').classList.toggle('on', v === 'map');
+    $('viewLists').classList.toggle('on', v === 'lists');
+    document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+    $('timeline').hidden = v !== 'timeline';
+    $('mapWrap').hidden = v !== 'map';
+    $('listsWrap').hidden = v !== 'lists';
+    if (v !== 'timeline') $('empty').hidden = true;
+  }
+  $('viewTimeline').onclick = () => { setView('timeline'); render(); };
+  $('viewMap').onclick = () => { setView('map'); render(); };
+  $('viewLists').onclick = () => { setView('lists'); render(); };
+  document.querySelectorAll('#tabbar button').forEach(b => { b.onclick = () => { setView(b.dataset.view); render(); $('scroller').scrollTo({ top: 0, behavior: 'instant' }); }; });
+  // keep page content clear of the fixed header, whatever height it currently is
+  const headerEl = document.querySelector('header');
+  new ResizeObserver(() => document.documentElement.style.setProperty('--hh', headerEl.offsetHeight + 'px')).observe(headerEl);
+
+  /* ---------- lists ---------- */
+  const LIST_IDEAS = ['Places we want to go', 'Things I love about you', 'Date ideas', 'Bucket list'];
+  async function createList(title) {
+    title = title.trim();
+    if (!title) return;
+    try { const l = await backend.createList(title); noteMine(l.id); if (!lists.some(x => x.id === l.id)) lists.push(l); }
+    catch (err) { toast('Could not create list: ' + err.message); return; }
+    renderLists();
+  }
+  function buildList(l) {
+    const itemsBox = h('div'), prog = h('div', { class: 'prog' });
+    const draw = () => {
+      const done = l.items.filter(i => i.done).length;
+      prog.textContent = l.items.length ? `${done} of ${l.items.length} done` : 'Nothing here yet';
+      itemsBox.replaceChildren(...[...l.items].sort((a, b) => a.created - b.created).map(it => {
+        const cb = h('input', { type: 'checkbox', checked: it.done });
+        cb.checked = it.done;
+        cb.onchange = async () => {
+          it.done = cb.checked;
+          try { await backend.setItemDone(l, it); } catch (e) { toast('Could not update'); it.done = !it.done; }
+          draw();
+        };
+        return h('div', { class: 'litem' + (it.done ? ' done' : '') },
+          h('label', {}, cb, h('span', { text: it.text }), it.author ? h('small', { text: '· ' + it.author }) : null),
+          h('button', {
+            class: 'x', title: 'Remove', 'aria-label': 'Remove item', text: '×',
+            onclick: async () => {
+              try { await backend.deleteItem(l, it); } catch (e) { toast('Could not remove'); return; }
+              l.items = l.items.filter(x => x.id !== it.id); draw();
+            },
+          }));
+      }));
+    };
+    const input = h('input', { type: 'text', maxlength: '200', placeholder: 'Add an item…', 'aria-label': 'Add an item' });
+    const form = h('form', {
+      class: 'itemform',
+      onsubmit: async e => {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+        try {
+          const it = await backend.addItem(l, text, getAuthor() || null);
+          noteMine(it.id);
+          if (!l.items.some(x => x.id === it.id)) l.items.push(it);
+        } catch (err) { toast('Could not add: ' + err.message); return; }
+        input.value = ''; draw();
+      },
+    }, input, h('button', { type: 'submit', text: 'Add' }));
+    draw();
+    return h('div', { class: 'listcard', style: `--tilt:${tilt(l.id) / 2}deg` },
+      h('button', {
+        class: 'ldel', title: 'Delete list', 'aria-label': 'Delete list', text: '🗑',
+        onclick: async () => {
+          if (!await ask({ title: `Delete “${l.title}”?`, okText: 'Delete' })) return;
+          try { await backend.deleteList(l); } catch (e) { toast('Could not delete: ' + e.message); return; }
+          lists = lists.filter(x => x.id !== l.id); renderLists();
+        },
+      }),
+      h('h3', { text: l.title }), prog, itemsBox, form);
+  }
+  function renderLists() {
+    $('empty').hidden = true;
+    $('listSuggest').replaceChildren(...(lists.length ? [] : LIST_IDEAS.map(t =>
+      h('button', { class: 'chip', text: '+ ' + t, onclick: () => createList(t) }))));
+    $('lists').replaceChildren(...[...lists].sort((a, b) => (a.created || 0) - (b.created || 0)).map(buildList));
+  }
+  $('newListForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const t = $('newListTitle').value;
+    $('newListTitle').value = '';
+    await createList(t);
+  });
+
+  /* ---------- add / edit dialog ---------- */
+  let editingId = null, original = [], pending = [];
+  let pendingLat = null, pendingLng = null, pendingSticker = null;
+  let suggestDate = null, suggestGps = null;
+  let pendingSong = null;
+
+  function drawSongPick() {
+    const s = pendingSong, box = $('songPick');
+    box.replaceChildren();
+    if (!s || !(s.title || s.preview)) return;
+    box.append(h('div', { class: 'song' },
+      s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : h('span', { class: 'songart', text: '🎵' }),
+      h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Song' }), s.artist ? h('small', { text: s.artist }) : null),
+      h('button', { type: 'button', class: 'songlink', text: 'Remove', onclick: () => { pendingSong = null; drawSongPick(); } })));
+  }
+  async function searchSongs() {
+    const q = $('songQ').value.trim();
+    if (!q) return;
+    const box = $('songResults');
+    box.replaceChildren(h('span', { class: 'hint', text: 'Searching…' }));
+    try {
+      const r = await fetch('https://itunes.apple.com/search?media=music&entity=song&limit=8&term=' + encodeURIComponent(q));
+      const res = ((await r.json()).results || []).filter(x => x.previewUrl);
+      box.replaceChildren(...(res.length ? res.map(x => h('button', {
+        type: 'button', class: 'songresult',
+        onclick: () => {
+          pendingSong = { title: x.trackName, artist: x.artistName, art: (x.artworkUrl100 || '').replace('100x100', '200x200'), preview: x.previewUrl, link: x.trackViewUrl };
+          box.replaceChildren(); drawSongPick();
+        },
+      }, h('img', { src: x.artworkUrl60 || x.artworkUrl100, alt: '' }), h('span', {}, x.trackName, h('small', { text: x.artistName }))))
+        : [h('span', { class: 'hint', text: 'No results. Try another search, or paste a link below.' })]));
+    } catch { box.replaceChildren(h('span', { class: 'hint', text: 'Search failed. You can still paste a link below.' })); }
+  }
+  $('songGo').onclick = searchSongs;
+  $('songQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchSongs(); } });
+  $('capsule').onchange = () => { $('unlockField').hidden = !$('capsule').checked; };
+
+  // photo location -> a readable place name (OpenStreetMap Nominatim, same service as the map search)
+  async function reverseGeocode(lat, lng) {
+    try {
+      const lang = encodeURIComponent(navigator.language || 'en');
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&addressdetails=1&accept-language=${lang}&lat=${lat}&lon=${lng}`);
+      const j = await r.json();
+      const a = j.address || {};
+      const spot = a.city || a.town || a.village || a.suburb || a.hamlet || a.municipality || a.county || j.name || '';
+      const parts = [spot, a.state || a.region || '', a.country || ''].filter((p, i, arr) => p && arr.indexOf(p) === i);
+      return parts.join(', ') || (j.display_name || '').split(',').slice(0, 3).join(',').trim();
+    } catch { return ''; }
+  }
+  let placeUserEdited = false, placeAutoFilled = false;
+  // Fill the Place field (and pin) from a photo's location, unless the person has typed their own place.
+  async function autoFillPlace(gps) {
+    if (placeUserEdited && !placeAutoFilled) return;           // keep what they typed; the "Use location" chip stays
+    pendingLat = gps.lat; pendingLng = gps.lng;
+    const name = await reverseGeocode(gps.lat, gps.lng);
+    if (placeUserEdited && !placeAutoFilled) return;           // they started typing while we looked it up
+    if (name) $('place').value = name;
+    placeAutoFilled = true;
+    const note = $('placeAuto');
+    note.textContent = name ? '📍 Filled in from the photo’s location. Edit it if it’s not quite right.' : '📍 Map pin set from the photo’s location.';
+    note.hidden = false;
+    drawSuggestions();
+  }
+
+  async function geocode(q) {
+    try {
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+      const j = await r.json();
+      if (j[0]) return { lat: +j[0].lat, lng: +j[0].lon };
+    } catch {}
+    return null;
+  }
+
+  function drawMedia() {
+    $('mediaGrid').replaceChildren(...pending.map(it => {
+      const thumb = it.type === 'image' ? h('img', { src: it.url, alt: '' })
+        : it.type === 'video' ? h('video', { src: it.url, muted: true, preload: 'metadata' })
+        : h('span', { text: '🎙' });
+      return h('div', { class: 'mitem' }, thumb,
+        it.type !== 'image' ? h('small', { text: it.type === 'video' ? 'video' : 'voice' }) : null,
+        h('button', { type: 'button', class: 'x', 'aria-label': 'Remove', text: '×', onclick: () => { pending = pending.filter(x => x !== it); drawMedia(); } }));
+    }));
+  }
+  function drawSuggestions() {
+    const cur = $('date').value;
+    const occ = cur ? specialFor(cur) : [];
+    $('occasionHint').hidden = !occ.length;
+    if (occ.length) $('occasionHint').textContent = `${occ[0].emoji} ${occ.map(o => o.label).join(' · ')} — this one gets a big knot!`;
+    $('dateSuggest').hidden = !(suggestDate && suggestDate !== cur);
+    if (suggestDate) $('dateSuggestText').textContent = `📷 A photo was taken on ${parseDate(suggestDate).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.`;
+    $('gpsSuggest').hidden = !(suggestGps && pendingLat == null);
+  }
+  function drawStickers() {
+    $('stickers').replaceChildren(...[null, ...STICKERS].map(s => h('button', {
+      type: 'button', class: s === pendingSticker ? 'on' : '', text: s || '∅', title: s ? 'Sticker' : 'No sticker',
+      onclick: () => { pendingSticker = s; drawStickers(); },
+    })));
+  }
+
+  async function readExif(file) {
+    if (!window.exifr) return {};
+    try {
+      const d = await exifr.parse(file, { gps: true, exif: true, tiff: true, reviveValues: false });
+      if (!d) return {};
+      const raw = d.DateTimeOriginal || d.CreateDate;
+      const m = typeof raw === 'string' && raw.match(/^(\d{4}):(\d{2}):(\d{2})/);
+      return {
+        date: m ? `${m[1]}-${m[2]}-${m[3]}` : null,
+        gps: typeof d.latitude === 'number' && typeof d.longitude === 'number' ? { lat: d.latitude, lng: d.longitude } : null,
+      };
+    } catch { return {}; }
+  }
+
+  async function addFiles(files) {
+    for (const f of files) {
+      const kind = kindOf(f);
+      if (!kind) { toast(`${f.name}: unsupported file type`); continue; }
+      if (f.size > MAX_FILE) { toast(`${f.name} is over 50 MB, so it was skipped`); continue; }
+      try {
+        let blob = f;
+        if (kind === 'image') {
+          if (!suggestDate && !suggestGps) {
+            const ex = await readExif(f);
+            if (ex.date) suggestDate = ex.date;
+            if (ex.gps) { suggestGps = ex.gps; drawSuggestions(); await autoFillPlace(ex.gps); }
+          }
+          blob = await shrink(f);
+        }
+        pending.push({ type: kind, blob, url: URL.createObjectURL(blob) });
+      } catch (e) { toast(e.message); }
+    }
+    drawMedia(); drawSuggestions();
+  }
+
+  function openDialog(m) {
+    editingId = m ? m.id : null;
+    original = m ? [...m.media] : [];
+    pending = m ? [...m.media] : [];
+    pendingLat = m ? m.lat : null; pendingLng = m ? m.lng : null;
+    pendingSticker = m ? m.sticker : null;
+    suggestDate = null; suggestGps = null;
+    placeUserEdited = !!(m && m.place); placeAutoFilled = false; $('placeAuto').hidden = true;
+    pendingSong = m && m.song ? { ...m.song } : null;
+    $('songUrl').value = pendingSong && pendingSong.url ? pendingSong.url : '';
+    $('songQ').value = ''; $('songResults').replaceChildren(); drawSongPick();
+    $('capsule').checked = !!(m && m.unlock);
+    $('unlockDate').value = m && m.unlock ? m.unlock : '';
+    $('unlockField').hidden = !$('capsule').checked;
+    $('dialogTitle').textContent = m ? 'Edit memory' : 'Add a memory';
+    $('date').value = m ? m.date : todayISO();
+    $('text').value = m ? m.text : '';
+    $('place').value = m ? m.place : '';
+    $('tags').value = m ? m.tags.join(', ') : '';
+    drawMedia(); drawStickers(); drawSuggestions();
+    $('memDialog').showModal();
+  }
+
+  $('addBtn').onclick = () => openDialog(null);
+  $('cancelBtn').onclick = () => $('memDialog').close();
+  $('addMediaBtn').onclick = () => $('file').click();
+  $('file').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+  $('date').addEventListener('input', drawSuggestions);
+  $('dateSuggestBtn').onclick = () => { $('date').value = suggestDate; drawSuggestions(); };
+  $('gpsSuggestBtn').onclick = () => { pendingLat = suggestGps.lat; pendingLng = suggestGps.lng; drawSuggestions(); toast('Pin set from the photo'); };
+  $('place').addEventListener('input', () => {
+    pendingLat = null; pendingLng = null; placeUserEdited = true; placeAutoFilled = false;
+    $('placeAuto').hidden = true;
+    drawSuggestions();
+  });
+  const dlg = $('memDialog');
+  dlg.addEventListener('dragover', e => e.preventDefault());
+  dlg.addEventListener('drop', e => { e.preventDefault(); addFiles([...e.dataTransfer.files]); });
+
+  // voice notes
+  let rec = null, recStream = null, recChunks = [], recDiscard = false;
+  $('recBtn').onclick = async () => {
+    if (rec && rec.state === 'recording') { rec.stop(); return; }
+    try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { toast('Microphone not available'); return; }
+    recChunks = []; recDiscard = false;
+    rec = new MediaRecorder(recStream);
+    rec.ondataavailable = e => e.data.size && recChunks.push(e.data);
+    rec.onstop = () => {
+      recStream.getTracks().forEach(t => t.stop());
+      $('recBtn').textContent = '🎙 Record voice note';
+      if (recDiscard || !recChunks.length) return;
+      const blob = new Blob(recChunks, { type: rec.mimeType || 'audio/webm' });
+      pending.push({ type: 'audio', blob, url: URL.createObjectURL(blob) });
+      drawMedia();
+    };
+    rec.start();
+    $('recBtn').textContent = '⏹ Stop recording';
+  };
+  dlg.addEventListener('close', () => { if (rec && rec.state === 'recording') { recDiscard = true; rec.stop(); } });
+
+  $('memForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (rec && rec.state === 'recording') { toast('Stop the recording first'); return; }
+    const text = $('text').value.trim();
+    const songUrl = $('songUrl').value.trim();
+    if (!pending.length && !text && !pendingSong && !songUrl) { toast('Add a photo, a song, or write something for a text-only note'); return; }
+    if (songUrl && !/^https?:\/\//i.test(songUrl)) { toast('The song link should start with https://'); return; }
+    const unlock = $('capsule').checked ? $('unlockDate').value : null;
+    if ($('capsule').checked && !unlock) { toast('Choose the date the time capsule opens'); return; }
+    let song = pendingSong ? { ...pendingSong } : null;
+    if (songUrl) song = { ...(song || {}), url: songUrl }; else if (song) delete song.url;
+    const place = $('place').value.trim();
+    let lat = pendingLat, lng = pendingLng;
+    $('saveBtn').disabled = true;
+    try {
+      if (!place && !(lat != null)) { lat = null; lng = null; }
+      if (place && lat == null) {
+        const g = await geocode(place);
+        if (g) { lat = g.lat; lng = g.lng; } else toast('Couldn’t find that place on the map, so it was saved without a pin');
+      }
+      const prev = memories.find(x => x.id === editingId);
+      const tags = [...new Set($('tags').value.split(',').map(t => t.trim().toLowerCase().replace(/^#/, '')).filter(Boolean))];
+      const draft = {
+        id: editingId || crypto.randomUUID(), date: $('date').value, text, media: [...pending],
+        tags, favorite: prev ? prev.favorite : false, sticker: pendingSticker, place, lat, lng,
+        created: prev ? prev.created : Date.now(), comments: prev ? prev.comments : [],
+        reactions: prev ? prev.reactions : [], unlock, song,
+        author: prev ? prev.author : (getAuthor() || null),
+      };
+      noteMine(draft.id);
+      const removed = original.filter(x => !pending.includes(x));
+      const m = await backend.save(draft, removed);
+      memories = prev ? memories.map(x => x.id === m.id ? m : x) : [...memories, m];
+      dlg.close();
+      render();
+      toast('Memory saved');
+    } catch (err) {
+      console.error(err);
+      toast('Could not save: ' + (err.message || 'storage error'));
+    } finally { $('saveBtn').disabled = false; }
+  });
+
+  /* ---------- lightbox, filters, shuffle ---------- */
+  function openLightbox(url) { $('lightbox').querySelector('img').src = url; $('lightbox').showModal(); }
+  $('lightbox').addEventListener('click', () => $('lightbox').close());
+  ['q', 'from', 'to', 'order', 'favOnly'].forEach(id => $(id).addEventListener('input', render));
+  $('clearBtn').onclick = () => { $('q').value = ''; $('from').value = ''; $('to').value = ''; $('favOnly').checked = false; activeTags.clear(); render(); };
+  function setFilters(open) {
+    $('filterPanel').hidden = !open;
+    $('filterBtn').setAttribute('aria-expanded', String(open));
+    if (open) $('q').focus({ preventScroll: true });
+  }
+  $('filterBtn').onclick = () => setFilters($('filterPanel').hidden);
+  $('datesBtn').onclick = () => {
+    const open = $('dateRange').hidden;
+    $('dateRange').hidden = !open;
+    $('datesBtn').setAttribute('aria-expanded', String(open));
+  };
+  $('shuffleBtn').onclick = () => {
+    setView('timeline'); render();
+    const els = [...document.querySelectorAll('.entry')];
+    if (!els.length) return;
+    const el = els[Math.floor(Math.random() * els.length)];
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2000);
+  };
+
+  /* ---------- settings ---------- */
+  function openSettings() {
+    $('metDate').value = settings.met_date || '';
+    $('startDate').value = settings.start_date || '';
+    const sel = $('authorName'), cur = getAuthor();
+    if (cur && ![...sel.options].some(o => o.value === cur)) sel.append(new Option(cur, cur));
+    sel.value = cur;
+    $('themeSel').value = document.documentElement.dataset.theme;
+    $('specialRows').replaceChildren();
+    specialList().forEach(addSpecialRow);
+    $('settingsDialog').showModal();
+  }
+  function addSpecialRow(s = {}) {
+    const row = h('div', { class: 'sprow' },
+      h('input', { type: 'text', class: 'sp-label', maxlength: '60', placeholder: 'e.g. Sam’s birthday', value: s.label || '', 'aria-label': 'Name of the special day' }),
+      h('input', { type: 'date', class: 'sp-date', value: s.date || '', 'aria-label': 'Date' }),
+      h('select', { class: 'sp-kind', 'aria-label': 'Type' },
+        ['birthday', 'anniversary', 'other'].map(k => h('option', { value: k, selected: (s.kind || 'birthday') === k, text: { birthday: '🎂 Birthday', anniversary: '💍 Anniversary', other: '⭐ Other' }[k] }))),
+      h('button', { type: 'button', class: 'x', 'aria-label': 'Remove', title: 'Remove', text: '×', onclick: () => row.remove() }));
+    $('specialRows').append(row);
+    return row;
+  }
+  $('addSpecial').onclick = () => addSpecialRow().querySelector('.sp-label').focus();
+  $('settingsBtn').onclick = openSettings;
+  $('settingsCancel').onclick = () => $('settingsDialog').close();
+  $('themeSel').addEventListener('input', () => applyTheme($('themeSel').value));
+  $('settingsForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    store.set('scrapbook-author', $('authorName').value.trim());
+    const special = [...$('specialRows').children].map(r => ({
+      label: r.querySelector('.sp-label').value.trim(),
+      date: r.querySelector('.sp-date').value,
+      kind: r.querySelector('.sp-kind').value,
+    })).filter(s => s.date);
+    special.forEach(s => { if (!s.label) s.label = { birthday: 'Birthday', anniversary: 'Anniversary', other: 'Special day' }[s.kind]; });
+    try {
+      await backend.setSetting('met_date', $('metDate').value);
+      await backend.setSetting('start_date', $('startDate').value);
+      await backend.setSetting('special_dates', JSON.stringify(special));
+      settings.met_date = $('metDate').value || null;
+      settings.start_date = $('startDate').value || null;
+      settings.special_dates = JSON.stringify(special);
+      toast('Settings saved');
+    } catch (err) { toast('Could not save settings: ' + err.message); }
+    $('settingsDialog').close();
+    render();
+  });
+
+  /* ---------- slideshow ---------- */
+  let showList = [], showIdx = 0, showTimer = null, playing = true;
+  const slideAudio = new Audio();
+  slideAudio.volume = 0.7;
+  function playSlideSong(m) {
+    if (playing && m.song && m.song.preview) {
+      stopCardAudio();
+      if (slideAudio.src !== m.song.preview) slideAudio.src = m.song.preview;
+      slideAudio.play().catch(() => {});
+    } else slideAudio.pause();
+  }
+  function drawSlide() {
+    clearTimeout(showTimer);
+    const m = showList[showIdx];
+    const it = m.media.find(x => x.type === 'image' && x.url) || m.media.find(x => x.type === 'video' && x.url);
+    const stage = $('showStage'); stage.replaceChildren();
+    if (it && it.type === 'image') stage.append(h('img', { src: it.url, alt: '' }));
+    else if (it) stage.append(h('video', { src: it.url, controls: true, autoplay: true, playsinline: true, onended: () => playing && slide(1) }));
+    else stage.append(h('div', { class: 'noimg', text: m.sticker || '💌' }));
+    $('showCap').replaceChildren(h('div', { class: 'sdate', text: fmt(m.date) }), h('div', { text: m.text }),
+      m.song && (m.song.title || m.song.preview) ? h('div', { style: 'opacity:.75;margin-top:6px', text: `🎵 ${m.song.title || 'Our song'}${m.song.artist ? ' — ' + m.song.artist : ''}` }) : null);
+    $('showPos').textContent = `${showIdx + 1} / ${showList.length}`;
+    $('showPlay').textContent = playing ? '⏸' : '▶';
+    playSlideSong(m);
+    if (playing && !(it && it.type === 'video')) showTimer = setTimeout(() => slide(1), 5000);
+  }
+  function slide(d) { showIdx = (showIdx + d + showList.length) % showList.length; drawSlide(); }
+  function closeShow() { clearTimeout(showTimer); slideAudio.pause(); $('show').hidden = true; document.body.style.overflow = ''; }
+  $('showBtn').onclick = () => {
+    showList = visible().filter(m => !isLocked(m));
+    if (!showList.length) { toast('Nothing to show'); return; }
+    showIdx = 0; playing = true; $('show').hidden = false; document.body.style.overflow = 'hidden'; drawSlide();
+  };
+  $('showPrev').onclick = () => slide(-1);
+  $('showNext').onclick = () => slide(1);
+  $('showPlay').onclick = () => { playing = !playing; drawSlide(); };
+  $('showClose').onclick = closeShow;
+  document.addEventListener('keydown', e => {
+    if ($('show').hidden) return;
+    if (e.key === 'Escape') closeShow();
+    else if (e.key === 'ArrowRight') slide(1);
+    else if (e.key === 'ArrowLeft') slide(-1);
+    else if (e.key === ' ') { e.preventDefault(); playing = !playing; drawSlide(); }
+  });
+
+  /* ---------- photo book (print to PDF) ---------- */
+  async function printBook() {
+    const list = visible().filter(m => !isLocked(m))
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.created - b.created);
+    if (!list.length) { toast('No memories to put in the book'); return; }
+    const monthYear = s => parseDate(s).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const book = $('book');
+    book.replaceChildren(h('section', { class: 'bpage cover' },
+      h('div', { class: 'bk-title', text: 'Our Scrapbook' }),
+      h('div', { class: 'bk-sub', text: `${monthYear(list[0].date)} – ${monthYear(list[list.length - 1].date)}` }),
+      h('div', { class: 'bk-count', text: `${list.length} memor${list.length === 1 ? 'y' : 'ies'}` }),
+      settings.start_date ? h('div', { class: 'bk-count', text: `💞 ${daysBetween(settings.start_date).toLocaleString()} days together` }) : null));
+    for (const m of list) {
+      const imgs = m.media.filter(x => x.type === 'image' && x.url).slice(0, 4);
+      const occ = specialFor(m.date);
+      const comments = [...m.comments].sort((a, b) => a.created - b.created);
+      book.append(h('section', { class: 'bpage' },
+        imgs.length ? h('div', { class: 'bk-photos n' + imgs.length }, imgs.map(i => h('img', { src: i.url, alt: '' }))) : null,
+        h('div', { class: 'bk-date', text: fmt(m.date) }),
+        m.author ? h('div', { class: 'bk-meta', text: 'Added by ' + m.author }) : null,
+        occ.length ? h('div', { class: 'bk-occ', text: occ.map(o => o.emoji + ' ' + o.label).join(' · ') }) : null,
+        m.place ? h('div', { class: 'bk-meta', text: '📍 ' + m.place }) : null,
+        m.text ? h('div', { class: 'bk-text', text: m.text }) : null,
+        m.song && (m.song.title || m.song.preview) ? h('div', { class: 'bk-meta', text: `🎵 ${m.song.title || 'Our song'}${m.song.artist ? ' — ' + m.song.artist : ''}` }) : null,
+        m.tags.length ? h('div', { class: 'bk-meta', text: m.tags.map(t => '#' + t).join('  ') }) : null,
+        comments.length ? h('div', { class: 'bk-comments' }, comments.map(c => h('div', {}, h('b', { text: c.author + ': ' }), c.body))) : null));
+    }
+    toast('Getting your photo book ready…');
+    await Promise.all([...book.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
+    const done = () => { document.body.classList.remove('printing-book'); book.replaceChildren(); };
+    document.body.classList.add('printing-book');
+    window.addEventListener('afterprint', done, { once: true });
+    window.print();
+  }
+  $('bookBtn').onclick = printBook;
+
+  /* ---------- full backup (.zip: data.json + every photo/video/voice note) ---------- */
+  async function downloadBackup() {
+    if (!window.JSZip) { toast('The backup tool failed to load. Check your connection and reload.'); return; }
+    const btn = $('backupBtn'), label = btn.textContent;
+    btn.disabled = true;
+    try {
+      const zip = new JSZip();
+      const total = memories.reduce((n, m) => n + m.media.length, 0);
+      let done = 0;
+      const data = {
+        app: 'Our Scrapbook', exported_at: new Date().toISOString(), version: 1, settings,
+        lists: lists.map(l => ({ title: l.title, items: l.items.map(i => ({ text: i.text, done: i.done, author: i.author })) })),
+        memories: [],
+      };
+      for (const m of memories) {
+        const media = [];
+        for (const it of m.media) {
+          btn.textContent = `Saving photos… ${++done}/${total}`;
+          const ext = ((it.path || '').split('.').pop()) || extFor(it.blob || { type: '' });
+          const file = `media/${m.id}-${media.length + 1}.${ext}`;
+          if (it.url) {
+            try { zip.file(file, await (await fetch(it.url)).blob()); media.push({ type: it.type, file, path: it.path || null }); }
+            catch { media.push({ type: it.type, file: null, path: it.path || null, error: 'download failed' }); }
+          }
+        }
+        data.memories.push({
+          id: m.id, author: m.author || null, date: m.date, text: m.text, tags: m.tags, favorite: m.favorite, sticker: m.sticker,
+          place: m.place, lat: m.lat, lng: m.lng, unlock_date: m.unlock, song: m.song,
+          created: new Date(m.created).toISOString(), media,
+          comments: m.comments.map(c => ({ author: c.author, body: c.body, created: new Date(c.created).toISOString() })),
+          reactions: m.reactions.map(r => ({ author: r.author, emoji: r.emoji })),
+        });
+      }
+      zip.file('data.json', JSON.stringify(data, null, 2));
+      zip.file('README.txt', 'Our Scrapbook backup.\n\ndata.json holds every memory, comment, reaction and list.\nmedia/ holds every photo, video and voice note (data.json says which belongs to which memory).\n');
+      btn.textContent = 'Zipping…';
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = h('a', { href: URL.createObjectURL(blob), download: `scrapbook-backup-${todayISO()}.zip` });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      toast(`Backup saved: ${data.memories.length} memories, ${done} files`);
+    } catch (err) { console.error(err); toast('Backup failed: ' + (err.message || 'unknown error')); }
+    finally { btn.disabled = false; btn.textContent = label; }
+  }
+  $('backupBtn').onclick = downloadBackup;
+
+  if (window.SCRAPBOOK_TEST_MODE && window.SCRAPBOOK_TEST_MODE !== 'live') {
+    document.body.prepend(h('div', { class: 'testbanner', text: window.SCRAPBOOK_TEST_MODE === 'dev'
+      ? 'TEST MODE: using the test database from config.dev.js, not your real scrapbook.'
+      : 'TEST MODE: browser-only practice data on this computer. Your real scrapbook is not connected.' }));
+  }
+
+  /* ---------- live updates & notifications ---------- */
+  // Sync = reload everything, tell me what's new from the other person, and redraw if anything changed.
+  // Triggered by realtime events when they arrive, and by a 20-second check as a fallback.
+  const knownIds = () => {
+    const s = new Set();
+    memories.forEach(m => {
+      s.add('m:' + m.id);
+      m.comments.forEach(c => s.add('c:' + c.id));
+      m.reactions.forEach(r => s.add('r:' + r.id));
+    });
+    lists.forEach(l => l.items.forEach(i => s.add('i:' + i.id)));
+    return s;
+  };
+  const signature = (mm, ll) => JSON.stringify([
+    mm.map(m => [m.id, m.date, m.text, m.favorite, m.tags, m.unlock, m.song, m.place, m.sticker,
+      m.media.map(x => x.path), m.comments.map(c => c.id), m.reactions.map(r => r.id)]),
+    ll.map(l => [l.id, l.title, l.items.map(i => [i.id, i.done, i.text])])]);
+  let syncing = false, syncTimer = null;
+  async function syncNow() {
+    if (syncing || !document.body || document.body.classList.contains('locked')) return;
+    // don't rebuild the page under someone who is typing or has a dialog open
+    const a = document.activeElement;
+    const busy = $('memDialog').open || $('settingsDialog').open || $('askDialog').open || !$('show').hidden ||
+      (a && a.tagName === 'INPUT' && a.value && a.type === 'text');
+    if (busy) return;
+    syncing = true;
+    try {
+      const before = knownIds(), oldSig = signature(memories, lists);
+      const [mm, ll] = await Promise.all([backend.loadAll(), backend.loadLists()]);
+      if (signature(mm, ll) === oldSig) return;
+      const me = getAuthor(), msgs = [];
+      mm.forEach(m => {
+        if (!before.has('m:' + m.id) && !mine.has(m.id) && !(m.author && m.author === me))
+          msgs.push(m.author ? `💌 ${m.author} added a memory` : '💌 A new memory was added');
+        m.comments.forEach(c => { if (!before.has('c:' + c.id) && !mine.has(c.id) && c.author !== me) msgs.push(`💬 ${c.author} left a comment`); });
+        m.reactions.forEach(r => { if (!before.has('r:' + r.id) && !mine.has(r.id) && r.author !== me) msgs.push(`${r.emoji} ${r.author} reacted to a memory`); });
+      });
+      ll.forEach(l => l.items.forEach(i => { if (!before.has('i:' + i.id) && !mine.has(i.id) && !(i.author && i.author === me)) msgs.push('📝 Something was added to a list'); }));
+      memories = mm; lists = ll;
+      render();
+      if (msgs.length) {
+        const msg = msgs.length === 1 ? msgs[0] : `💌 ${msgs.length} new things from your person`;
+        toast(msg);
+        if (document.hidden) {
+          document.title = '• Our Scrapbook';
+          if ('Notification' in window && Notification.permission === 'granted') { try { new Notification('Our Scrapbook', { body: msg }); } catch {} }
+        }
+      }
+    } catch (err) { console.warn('sync failed', err); }
+    finally { syncing = false; }
+  }
+  function onRemote() { clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 400); }
+  setInterval(syncNow, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
+
+  /* ---------- mobile "more" menu ---------- */
+  const menu = $('moreMenu');
+  const closeMenu = () => { menu.hidden = true; $('moreBtn').setAttribute('aria-expanded', 'false'); };
+  $('moreBtn').onclick = e => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+    $('moreBtn').setAttribute('aria-expanded', String(!menu.hidden));
+  };
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('[data-proxy]');
+    if (!b) return;
+    closeMenu();
+    $(b.dataset.proxy).click();
+  });
+  document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) closeMenu(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) store.set('scrapbook-last-seen', String(Date.now()));
+    else document.title = 'Our Scrapbook';
+  });
+  addEventListener('pagehide', () => store.set('scrapbook-last-seen', String(Date.now())));
+
+  function notifState() {
+    const b = $('notifBtn');
+    if (!('Notification' in window)) { b.textContent = 'Not supported in this browser'; b.disabled = true; return; }
+    b.disabled = Notification.permission === 'denied';
+    b.textContent = { granted: '✓ Notifications are on', denied: 'Blocked in browser settings', default: 'Enable browser notifications' }[Notification.permission];
+  }
+  $('notifBtn').onclick = async () => { try { await Notification.requestPermission(); } catch {} notifState(); };
+  $('settingsBtn').addEventListener('click', notifState);
+
+  function welcomeBack() {
+    const since = +store.get('scrapbook-last-seen') || 0;
+    store.set('scrapbook-last-seen', String(Date.now()));
+    if (!since) return;
+    const me = getAuthor();
+    const newMem = memories.filter(m => m.created > since).length;
+    const newCom = memories.flatMap(m => m.comments).filter(c => c.created > since && c.author !== me).length;
+    const bits = [];
+    if (newMem) bits.push(`${newMem} new memor${newMem === 1 ? 'y' : 'ies'}`);
+    if (newCom) bits.push(`${newCom} new comment${newCom === 1 ? '' : 's'}`);
+    if (bits.length) toast('💌 Since you were last here: ' + bits.join(' and '));
+  }
+
+  /* ---------- init & auth ---------- */
+  async function start() {
+    document.body.classList.remove('locked');
+    try { memories = (await backend.loadAll()) || []; }
+    catch (err) { console.error(err); toast('Could not load memories: ' + (err.message || 'storage error')); }
+    try { settings = (await backend.getSettings()) || {}; } catch { settings = {}; }
+    try { lists = (await backend.loadLists()) || []; } catch (err) { console.warn(err); lists = []; }
+    render();
+    welcomeBack();
+    backend.unsubscribe();
+    backend.subscribe(onRemote);
+  }
+
+  // "Who's this?" (Rashmika or Darren): chosen on the login screen, remembered on this device
+  let chosenWho = getAuthor();
+  const paintWho = () => document.querySelectorAll('.whobtn').forEach(b => b.classList.toggle('on', b.dataset.who === chosenWho));
+  document.querySelectorAll('.whobtn').forEach(b => b.addEventListener('click', () => {
+    chosenWho = b.dataset.who;
+    store.set('scrapbook-author', chosenWho);
+    paintWho();
+    $('loginErr').textContent = '';
+    if ($('whoDialog').open) $('whoDialog').close();
+  }));
+  $('whoDialog').addEventListener('cancel', e => e.preventDefault());
+  paintWho();
+  // devices that are already signed in but haven't said who they are get asked once
+  const askWho = () => new Promise(res => {
+    if (getAuthor()) return res();
+    $('whoDialog').addEventListener('close', () => res(), { once: true });
+    $('whoDialog').showModal();
+  });
+
+  if (cloudMode) {
+    $('signOutBtn').hidden = false;
+    $('moreSignOut').hidden = false;
+    // keep the username field in the page (just invisible) so the phone's password manager can offer to save it
+    if (CFG.sharedEmail) { $('email').value = CFG.sharedEmail; $('emailField').classList.add('sr-only'); }
+    $('signOutBtn').onclick = async () => {
+      backend.unsubscribe();
+      await sb.auth.signOut(); memories = []; settings = {}; lists = []; render();
+      document.body.classList.add('locked'); $('loginDialog').showModal();
+    };
+    $('loginForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      $('loginErr').textContent = '';
+      if (!getAuthor()) { $('loginErr').textContent = 'Tap R or D first, so we know who you are.'; return; }
+      const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+      if (error) { $('loginErr').textContent = error.message; return; }
+      $('password').value = '';
+      $('loginDialog').close();
+      start();
+    });
+    $('loginDialog').addEventListener('cancel', e => e.preventDefault());
+    sb.auth.getSession().then(async ({ data }) => {
+      if (data.session) { await askWho(); start(); } else $('loginDialog').showModal();
+    });
+  } else {
+    askWho().then(start);
+  }
+})();
+</script>
+</body>
+</html>

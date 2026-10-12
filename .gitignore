@@ -1,0 +1,7 @@
+# test-only database settings, never deployed
+config.dev.js
+
+# editor / OS noise
+.DS_Store
+Thumbs.db
+.claude/
