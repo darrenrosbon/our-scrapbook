@@ -173,8 +173,14 @@
   audio { width: 100%; margin-top: 8px; height: 36px; }
   .actions { position: absolute; top: 18px; right: 18px; display: flex; gap: 6px; z-index: 5; }
   .actions button { border: 0; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; background: rgba(255,255,255,.92); color: #333; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-  .actions .edit, .actions .del { opacity: 0; transition: opacity .15s; }
-  .polaroid:hover .edit, .polaroid:hover .del, .polaroid:focus-within .edit, .polaroid:focus-within .del { opacity: 1; }
+  /* Edit / Delete: always visible on every card (desktop and touch) */
+  .cardfoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .cardfoot .reactions { margin-top: 0; }
+  .cardtools { display: flex; gap: 6px; margin-left: auto; }
+  .cardtools button { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 5px 12px; font-size: .85rem; cursor: pointer; min-height: 32px; }
+  .cardtools button:hover { background: var(--paper-2); }
+  .cardtools .del { padding: 5px 10px; }
+  @media (pointer: coarse) { .cardtools button { min-height: 40px; padding: 8px 14px; } .react { min-height: 36px; } }
   .actions .fav.on { color: #d6335a; }
   @media (hover: none) { .actions .edit, .actions .del { opacity: 1; } }
   .comments { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; font-size: .9rem; }
@@ -1280,9 +1286,6 @@
     const hasVisual = m.media.some(x => x.type !== 'audio' && x.url);
     const pol = h('div', { class: 'polaroid' + (hasVisual ? '' : ' note'), style: `--tilt:${tilt(m.id)}deg` },
       m.sticker ? h('div', { class: 'sticker', text: m.sticker, 'aria-hidden': 'true' }) : null,
-      h('div', { class: 'actions' },
-        h('button', { class: 'edit', title: 'Edit', 'aria-label': 'Edit memory', text: '✎', onclick: () => openDialog(m) }),
-        h('button', { class: 'del', title: 'Delete', 'aria-label': 'Delete memory', text: '🗑', onclick: () => removeMemory(m) })),
       fav,
       buildCarousel(m),
       h('div', { class: 'date', text: fmt(m.date) }),
@@ -1296,7 +1299,11 @@
         class: 'chip', text: '#' + t, onclick: () => { activeTags.add(t); setFilters(true); render(); $('scroller').scrollTo({ top: 0 }); },
       }))) : null,
       buildSong(m),
-      buildReactions(m),
+      h('div', { class: 'cardfoot' },
+        buildReactions(m),
+        h('div', { class: 'cardtools' },
+          h('button', { type: 'button', class: 'edit', 'aria-label': 'Edit this memory', onclick: () => openDialog(m) }, '✎ Edit'),
+          h('button', { type: 'button', class: 'del', 'aria-label': 'Delete this memory', onclick: () => removeMemory(m) }, '🗑'))),
       buildComments(m));
     return h('article', {
       class: 'entry' + (right ? ' right' : '') + (occasions.length ? ' special' : ''),
