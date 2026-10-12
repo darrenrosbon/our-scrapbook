@@ -131,7 +131,7 @@
   .entry:not(.right)::after { right: calc(-8px - var(--kx, 0px)); }
   .entry.right::after { left: calc(-8px + var(--kx, 0px)); }
   .entry.flash .polaroid { outline: 3px solid var(--accent); outline-offset: 4px; }
-  .polaroid { position: relative; background: var(--card); padding: 12px 12px 14px; box-shadow: var(--shadow); transform: rotate(var(--tilt, 0deg)); transition: transform .2s; animation: pop .5s ease both; }
+  .polaroid { position: relative; background: var(--card); padding: 12px 12px 14px; box-shadow: var(--shadow); transform: rotate(var(--tilt, 0deg)); transition: transform .2s; animation: pop .5s ease backwards; }
   .polaroid:hover { transform: rotate(0deg) scale(1.01); z-index: 3; }
   .polaroid::before { content: ''; position: absolute; top: -12px; left: 50%; width: 90px; height: 24px; background: var(--tape); transform: translateX(-50%) rotate(-3deg); }
   .sticker { position: absolute; top: -18px; left: -14px; font-size: 2.2rem; transform: rotate(-12deg); filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); z-index: 4; pointer-events: none; }
@@ -139,7 +139,7 @@
   .stack { position: relative; aspect-ratio: 4 / 3; margin-bottom: 14px; }
   .slide {
     position: absolute; inset: 0; background: #1d1d1d; border: 6px solid var(--card); box-shadow: 0 2px 8px rgba(0,0,0,.28);
-    transition: transform .38s cubic-bezier(.3,.7,.3,1), opacity .38s; will-change: transform;
+    transition: transform .38s cubic-bezier(.3,.7,.3,1), opacity .38s;
   }
   .slide img, .slide video { display: block; width: 100%; height: 100%; object-fit: cover; }
   .slide img { cursor: zoom-in; }
@@ -241,7 +241,8 @@
   @media (max-width: 720px) { .entry.special:not(.right)::after, .entry.special.right::after { left: calc(-8px + var(--kx, 0px)); right: auto; } }
   /* song player */
   .song { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px; background: var(--paper-2); border-radius: 10px; flex-wrap: wrap; }
-  .songart { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; display: grid; place-items: center; background: var(--card); font-size: 1.3rem; flex: none; }
+  .songart { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; display: grid; place-items: center; background: var(--card); font-size: 1.1rem; flex: none; }
+  .songextra { flex-basis: 100%; padding-left: 46px; }
   .songmeta { flex: 1; min-width: 0; line-height: 1.25; }
   .songmeta b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
   .songmeta small { color: var(--muted); }
@@ -507,11 +508,11 @@
     <div class="field">Song <span class="hint">(optional: search to add a 30-second preview, and/or paste a YouTube or Spotify link for the full song)</span>
       <div id="songPick"></div>
       <div class="songsearch">
-        <input type="text" id="songQ" placeholder="Search a song or artist…" autocomplete="off">
+        <input type="search" id="songQ" form="no-form" placeholder="Search a song or artist…" autocomplete="off" autocapitalize="off" enterkeyhint="search">
         <button type="button" class="btn ghost" id="songGo">Search</button>
       </div>
       <div id="songResults" class="songresults"></div>
-      <input type="url" id="songUrl" placeholder="https://www.youtube.com/watch?v=… or open.spotify.com/track/…">
+      <input type="url" id="songUrl" form="no-form" placeholder="https://www.youtube.com/watch?v=… or open.spotify.com/track/…">
     </div>
     <label class="check"><input type="checkbox" id="capsule"> 🔒 Seal as a time capsule <span class="hint">(hidden until a date you choose)</span></label>
     <label class="field" id="unlockField" hidden>Opens on <input type="date" id="unlockDate"></label>
@@ -1173,40 +1174,50 @@
   function buildSong(m) {
     const s = m.song;
     if (!s) return null;
+    // one tidy row:  [▶/⏸]  Song name · Artist  [art]
     const embed = parseEmbed(s.url);
     const wrap = h('div', { class: 'song' });
-    wrap.append(
-      s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : h('span', { class: 'songart', text: '🎵' }),
-      h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Our song' }), s.artist ? h('small', { text: s.artist }) : null));
-    if (s.preview) {
-      const btn = h('button', { class: 'songplay', 'aria-label': 'Play 30-second preview', title: '30-second preview', text: '▶' });
+    let player = null;                                   // the YouTube/Spotify embed, when open
+    const showEmbed = open => {
+      if (open && !player && embed) {
+        stopCardAudio();
+        const auto = embed.src.includes('youtube') ? '?autoplay=1&playsinline=1' : '';
+        player = h('iframe', { class: 'songembed', src: embed.src + auto, height: String(embed.height), title: 'Song player',
+          allow: 'autoplay; encrypted-media; clipboard-write; fullscreen', referrerpolicy: 'strict-origin-when-cross-origin' });
+        wrap.append(player);
+      } else if (!open && player) { player.remove(); player = null; }
+    };
+    const btn = (s.preview || embed) ? h('button', { class: 'songplay', type: 'button', text: '▶',
+      'aria-label': 'Play song', title: s.preview ? 'Play the 30-second preview' : 'Play the song' }) : null;
+    if (btn && s.preview) {
       let audio = null;
       btn.onclick = () => {
         if (!audio) {
           audio = new Audio(s.preview);
-          audio.addEventListener('play', () => { btn.textContent = '⏸'; });
-          audio.addEventListener('pause', () => { btn.textContent = '▶'; });
-          audio.addEventListener('ended', () => { btn.textContent = '▶'; });
+          audio.addEventListener('play', () => { btn.textContent = '⏸'; btn.setAttribute('aria-label', 'Pause song'); });
+          const stopped = () => { btn.textContent = '▶'; btn.setAttribute('aria-label', 'Play song'); };
+          audio.addEventListener('pause', stopped); audio.addEventListener('ended', stopped);
+          audio.addEventListener('error', () => { stopped(); toast('That preview couldn’t be played'); });
         }
         if (audio.paused) {
           if (currentAudio && currentAudio !== audio) currentAudio.pause();
           currentAudio = audio;
-          audio.play().catch(() => toast('Could not play the preview'));
+          audio.play().catch(() => toast('That preview couldn’t be played'));
         } else audio.pause();
       };
-      wrap.append(btn);
+    } else if (btn) {                                    // link only (YouTube/Spotify): the button opens/closes the player
+      btn.onclick = () => { const open = !player; showEmbed(open); btn.textContent = open ? '⏸' : '▶'; };
     }
-    if (embed) {
-      const full = h('button', { class: 'songlink', text: 'Play full song' });
-      full.onclick = () => {
-        stopCardAudio();
-        full.replaceWith(h('span', { class: 'hint', text: 'Playing below ↓' }));
-        wrap.append(h('iframe', { class: 'songembed', src: embed.src, height: String(embed.height), loading: 'lazy', title: 'Song player',
-          allow: 'autoplay; encrypted-media; clipboard-write; fullscreen', referrerpolicy: 'strict-origin-when-cross-origin' }));
-      };
-      wrap.append(full);
-    } else if (s.url || s.link) {
-      wrap.append(h('a', { class: 'songlink', href: s.url || s.link, target: '_blank', rel: 'noopener noreferrer', text: 'Full song ↗' }));
+    wrap.append(
+      btn,
+      h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Our song' }), s.artist ? h('small', { text: s.artist }) : null),
+      s.art ? h('img', { class: 'songart', src: s.art, alt: '' }) : null);
+    if (s.preview && embed) {                            // has both: preview on the button, full song on request
+      const full = h('button', { class: 'songlink', type: 'button', text: 'Play the full song' });
+      full.onclick = () => { showEmbed(!player); full.textContent = player ? 'Hide the player' : 'Play the full song'; };
+      wrap.append(h('div', { class: 'songextra' }, full));
+    } else if (!embed && (s.url || s.link)) {
+      wrap.append(h('div', { class: 'songextra' }, h('a', { class: 'songlink', href: s.url || s.link, target: '_blank', rel: 'noopener noreferrer', text: 'Open the full song ↗' })));
     }
     return wrap;
   }
@@ -1489,26 +1500,102 @@
       h('div', { class: 'songmeta' }, h('b', { text: s.title || 'Song' }), s.artist ? h('small', { text: s.artist }) : null),
       h('button', { type: 'button', class: 'songlink', text: 'Remove', onclick: () => { pendingSong = null; drawSongPick(); } })));
   }
+  // --- song lookup: several routes, so one blocked service doesn't break it ---
+  // "JSONP" loads the answer through a <script> tag, which still works where a normal request is blocked.
+  function jsonp(url, ms = 7000) {
+    return new Promise((resolve, reject) => {
+      const cb = 'sbjp_' + Math.random().toString(36).slice(2);
+      const s = document.createElement('script');
+      const finish = (fn, v) => { clearTimeout(t); delete window[cb]; s.remove(); fn(v); };
+      const t = setTimeout(() => finish(reject, new Error('timed out')), ms);
+      window[cb] = d => finish(resolve, d);
+      s.onerror = () => finish(reject, new Error('blocked or unreachable'));
+      s.src = url + '&callback=' + cb;
+      document.head.append(s);
+    });
+  }
+  async function getJson(url, ms = 7000) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
+  const itunesUrl = q => 'https://itunes.apple.com/search?media=music&entity=song&limit=10&term=' + encodeURIComponent(q);
+  const deezerUrl = q => 'https://api.deezer.com/search?limit=10&output=jsonp&q=' + encodeURIComponent(q);
+  const fromItunes = d => (d.results || []).filter(x => x.trackName).map(x => ({
+    title: x.trackName, artist: x.artistName || '', art: (x.artworkUrl100 || '').replace('100x100', '200x200'),
+    thumb: x.artworkUrl60 || x.artworkUrl100 || '', preview: x.previewUrl || null, link: x.trackViewUrl || null }));
+  const fromDeezer = d => (d.data || []).filter(x => x.title).map(x => ({
+    title: x.title, artist: (x.artist && x.artist.name) || '', art: (x.album && (x.album.cover_big || x.album.cover_medium)) || '',
+    thumb: (x.album && (x.album.cover_small || x.album.cover_medium)) || '', preview: x.preview || null, link: x.link || null }));
+  const SONG_ROUTES = [
+    ['Apple Music', q => getJson(itunesUrl(q)).then(fromItunes)],
+    ['Apple Music (2)', q => jsonp(itunesUrl(q)).then(fromItunes)],
+    ['Deezer', q => jsonp(deezerUrl(q)).then(fromDeezer)],
+  ];
+
+  let songSearchSeq = 0;
   async function searchSongs() {
     const q = $('songQ').value.trim();
-    if (!q) return;
     const box = $('songResults');
-    box.replaceChildren(h('span', { class: 'hint', text: 'Searching…' }));
-    try {
-      const r = await fetch('https://itunes.apple.com/search?media=music&entity=song&limit=8&term=' + encodeURIComponent(q));
-      const res = ((await r.json()).results || []).filter(x => x.previewUrl);
-      box.replaceChildren(...(res.length ? res.map(x => h('button', {
-        type: 'button', class: 'songresult',
-        onclick: () => {
-          pendingSong = { title: x.trackName, artist: x.artistName, art: (x.artworkUrl100 || '').replace('100x100', '200x200'), preview: x.previewUrl, link: x.trackViewUrl };
-          box.replaceChildren(); drawSongPick();
-        },
-      }, h('img', { src: x.artworkUrl60 || x.artworkUrl100, alt: '' }), h('span', {}, x.trackName, h('small', { text: x.artistName }))))
-        : [h('span', { class: 'hint', text: 'No results. Try another search, or paste a link below.' })]));
-    } catch { box.replaceChildren(h('span', { class: 'hint', text: 'Search failed. You can still paste a link below.' })); }
+    if (q.length < 2) { box.replaceChildren(); return; }
+    const mySeq = ++songSearchSeq;            // ignore answers to older searches
+    const show = (...nodes) => { box.replaceChildren(...nodes.filter(Boolean)); box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+    const say = text => h('span', { class: 'hint', text });
+    // always possible: use exactly what was typed as the song name
+    const manual = () => h('button', {
+      type: 'button', class: 'songresult',
+      onclick: () => { pendingSong = { title: q, artist: '', art: '', preview: null, link: null }; box.replaceChildren(); drawSongPick(); $('songPick').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
+    }, h('span', { style: 'font-size:1.4rem' }, '✍️'), h('span', {}, `Use “${q}” as the song`, h('small', { text: 'no preview. Paste a link below to play it' })));
+    show(say('Searching…'));
+
+    const problems = [];
+    for (const [name, run] of SONG_ROUTES) {
+      try {
+        const res = await run(q);
+        if (mySeq !== songSearchSeq) return;
+        if (res.length) {
+          show(...res.map(x => h('button', {
+            type: 'button', class: 'songresult',
+            onclick: () => {
+              pendingSong = { title: x.title, artist: x.artist, art: x.art, preview: x.preview, link: x.link };
+              box.replaceChildren(); drawSongPick();
+              $('songPick').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            },
+          }, h('img', { src: x.thumb, alt: '' }), h('span', {}, x.title, h('small', { text: x.artist })))), manual());
+          return;
+        }
+        problems.push(name + ': no matches');
+      } catch (err) { problems.push(`${name}: ${(err && err.message) || 'failed'}`); }
+    }
+    if (mySeq !== songSearchSeq) return;
+    const allEmpty = problems.every(p => /no matches/.test(p));
+    show(
+      say(allEmpty ? 'No songs found. Try the artist name too.'
+        : 'The song lookup couldn’t be reached from this device (a content blocker or network filter may be stopping it).'),
+      manual(),
+      allEmpty ? null : h('small', { class: 'hint', text: problems.join(' · ') }));
   }
-  $('songGo').onclick = searchSongs;
-  $('songQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchSongs(); } });
+  // search as you type (so there's no need to find the Search button), and on Enter / the button
+  let songTyping = null;
+  $('songQ').addEventListener('input', () => { clearTimeout(songTyping); songTyping = setTimeout(searchSongs, 450); });
+  $('songQ').addEventListener('keydown', e => { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); clearTimeout(songTyping); searchSongs(); } });
+  $('songUrl').addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  $('songGo').onclick = () => { clearTimeout(songTyping); searchSongs(); };
+
+  // a pasted YouTube/Spotify link with no title: ask the site who it is (both allow this from a browser)
+  async function enrichSong(s) {
+    try {
+      const u = s.url || '';
+      const api = /youtu\.?be/.test(u) ? 'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(u)
+        : /open\.spotify\.com/.test(u) ? 'https://open.spotify.com/oembed?url=' + encodeURIComponent(u) : null;
+      if (!api) return s;
+      const j = await (await fetch(api)).json();
+      return { ...s, title: s.title || j.title || '', artist: s.artist || (j.author_name || '').replace(/ - Topic$/, ''), art: s.art || j.thumbnail_url || '' };
+    } catch { return s; }
+  }
   $('capsule').onchange = () => { $('unlockField').hidden = !$('capsule').checked; };
 
   // photo location -> a readable place name (OpenStreetMap Nominatim, same service as the map search)
@@ -1684,6 +1771,7 @@
     let lat = pendingLat, lng = pendingLng;
     $('saveBtn').disabled = true;
     try {
+      if (song && song.url && !song.title) song = await enrichSong(song);   // fill in the title from a pasted link
       if (!place && !(lat != null)) { lat = null; lng = null; }
       if (place && lat == null) {
         const g = await geocode(place);
